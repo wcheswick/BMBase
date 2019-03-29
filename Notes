@@ -1,0 +1,99 @@
+Advertising Packet Makeup for BroodMinder 
+
+This Document Version 2.0  - Version 1.xx & 2.xx Firmware
+Rich Morris 26 May 2016
+
+------------------------------------------------------------
+When you read advertising packets from BLE, you can identify BroodMinder products by looking at the following.
+
+The data will look something like this. - From device b5:30:07
+
+GAP Scan Response Event ------------------------------------------------------------------------------------
+ble_evt_gap_scan_response: rssi=-77, packet_type=0, sender=[ 07 30 b5 80 07 00 ], address_type=0, bond=255,
+  data=[ 02 01 06 02 0a 03 18 ff 8d 02 2b 15 02 00 02 21 00 d0 62 00 ff 7f 05 80 37 07 30 b5 00 00 00 ]
+
+
+Values are in decimal unless preceeded with 0x
+
+1) Check for "Manufacturer Specific Data"
+	Bytes 6,7 = 0x18, 0xff
+2) Check for IF, LLC as the manufacturer
+	Bytes 8,9 = 0x8d, 0x02
+3) Bytes 10-29 are the data from the BroodMinder as outlined below.
+	deviceModelIFllc_1 = 2b (43d = scale)
+	DeviceVersionMinor_1 = 15 (21d) 
+	DeviceVersionMajor_1  = 02 (FW 2.21)
+	Battery_1V2 = 2%
+	Elapsed_2V2 = 21 (33d) 
+	Temperature_2V2 = 62d0
+	WeightL_2V2 = 7FFF
+	WeightR_2V2 = 8005
+	Humidity_1V2 = 37
+	UUID_3V2 = b5:30:07
+
+Here is C# code to extract the info. It should be easily adapted to your languange of choice. Just pay attention to the byte numbers.
+
+Note: Version 2 firmware will add weight left and weight right (independent sensors) and drop average, low, and high values for temp/RH.
+
+-----------------------------------------------------------		
+	int byteNumAdvdeviceModelIFllc_1 = 10;
+	int byteNumAdvDeviceVersionMinor_1 = 11;
+	int byteNumAdvDeviceVersionMajor_1 = 12;
+	int byteNumAdvBattery_1 = 14;
+	int byteNumAdvElapsed_2 = 15;
+	int byteNumAdvTemperature_2 = 17;
+	int byteNumAdvTemperature14DayAverage_1 = 19;
+	int byteNumAdvTemperature14DayMin_2 = 20;
+	int byteNumAdvTemperature14DayMax_2 = 22;
+	int byteNumAdvHumidity_1 = 24;
+	int byteNumAdvHumidity14DayAverage_1 = 25;
+	int byteNumAdvHumidity14DayMin_2 = 26;
+	int byteNumAdvHumidity14DayMax_2 = 28;
+
+	// These moved in version 2
+	int byteNumAdvBattery_1V2 = 14;
+        int byteNumAdvElapsed_2V2 = 15;
+        int byteNumAdvTemperature_2V2 = 17;
+        int byteNumAdvWeightL_2V2 = 20;
+        int byteNumAdvWeightR_2V2 = 22;
+        int byteNumAdvHumidity_1V2 = 24
+	int byteNumAdvUUID_3V2 = 25
+
+	if (fwVersionMajor == 1) {
+		// Version 1 advertising
+		// Battery 0-100%
+		batteryPercent = e.data[byteNumAdvBattery_1];
+		// Elapsed are the number of samples stored in the internal log file of the BroodMinder
+		Elapsed = e.data[byteNumAdvElapsed_2] + (e.data[byteNumAdvElapsed_2 + 1] << 8);
+
+		// temperatureDegreesF is a 16 bit number. The others are 8 bit (0-255F)
+		temperatureDegreesF = e.data[byteNumAdvTemperature_2] + (e.data[byteNumAdvTemperature_2 + 1] << 8);
+		temperatureDegreesF = (temperatureDegreesF / Math.Pow(2, 16) * 165 - 40) * 9 / 5 + 32;
+		temperatureDegreesFAvg = e.data[byteNumAdvTemperature14DayAverage_1];
+		temperatureDegreesFLow = e.data[byteNumAdvTemperature14DayMin_2];
+		temperatureDegreesFHigh = e.data[byteNumAdvTemperature14DayMax_2];
+
+		// humidity is 0-100%
+		humidityPercent = e.data[byteNumAdvHumidity_1];
+		humidityPercentAvg = e.data[byteNumAdvHumidity14DayAverage_1];
+		humidityPercentLow = e.data[byteNumAdvHumidity14DayMin_2];
+		humidityPercentHigh = e.data[byteNumAdvHumidity14DayMax_2];
+		}
+	} else	{
+		// Version 2 adevertising
+                batteryPercent = e.data[byteNumAdvBattery_1V2];
+                Elapsed = e.data[byteNumAdvElapsed_2V2] + (e.data[byteNumAdvElapsed_2V2 + 1] << 8);
+
+                temperatureDegreesF = e.data[byteNumAdvTemperature_2V2] + (e.data[byteNumAdvTemperature_2V2 + 1] << 8);
+                temperatureDegreesF = (temperatureDegreesF / Math.Pow(2, 16) * 165 - 40) * 9 / 5 + 32;
+
+                humidityPercent = e.data[byteNumAdvHumidity_1V2];
+
+                weightL = e.data[byteNumAdvWeightL_2V2+1] * 256 + e.data[byteNumAdvWeightL_2V2 + 0] -32767;
+                weightScaledL = weightL / 100;
+
+                weightR = e.data[byteNumAdvWeightR_2V2 + 1] * 256 + e.data[byteNumAdvWeightR_2V2 + 0] - 32767;
+                weightScaledR = weightR / 100;
+
+                weightScaledTotal = weightScaledL + weightScaledR;
+         }	

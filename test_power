@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+prog=poll_hives
+usage=$prog
+#
+#	Power up the system, fetch and report the hive data, and
+#	power down again.
+
+# exec 2>>/tmp/$prog
+
+./rpi_powerdown
+
+sleep 10
+
+./rpi_powerup

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+prog=cycle_poll
+usage=$prog
+
+while true
+do
+	echo "$prog: `date`	polling hives" 1>&2
+	poll_hives
+
+	echo "$prog: `date`	powering down" 1>&2
+	rpi_powerdown
+	sleep 60
+
+	echo "$prog: `date`	powering up" 1>&2
+	rpi_powerup
+	sleep 300
+done

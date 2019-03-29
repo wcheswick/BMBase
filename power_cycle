@@ -1,0 +1,19 @@
+LED_OFF="echo 1 >/sys/class/leds/led0/brightness"
+LED_ON="echo 0 >/sys/class/leds/led0/brightness"
+
+set -x
+
+exec 2>>/var/tmp/power_cycle
+
+echo "`date` powering down" 1>&2
+./rpi_powerdown || exit 10
+
+echo "`date` **** powered down" 1>&2
+$LED_OFF
+
+sleep 20
+
+echo "`date` ^^^^ coming back up" 1>&2
+$LED_ON
+./rpi_powerup	|| exit 11
+echo "`date` powered up" 1>&2

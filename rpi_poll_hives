@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+prog=poll_hives
+usage=$prog
+#
+#	Power up the system, fetch and report the hive data, and
+#	power down again.
+
+export PATH=$HOME/bin:$PATH
+
+set -x
+
+LOG=$HOME/beeinfo
+mkdir -p $LOG 2>/dev/null
+
+exec 2>>/var/tmp/$prog
+
+rpi_powerup
+
+now=`date +%Y%m%d_%H%M`
+
+# sometimes the hci stuff gets hung somehow.  Turning it off and on usually
+# fixes this
+
+P="-m 5 -t 60"
+
+(	sudo bmscan $P 2>/dev/null || (
+		sudo hciconfig hci0 down; sudo hciconfig hci0 up;
+		sudo bmscan $P
+	)
+) | sed "s/^/$now	/" |
+sort >>$LOG/log 2>&1
+
+mutt -s "bee poll" beelog@farmmail.cheswick.com <$LOG/log
+
+sleep 10	# let the mail go
+
+rpi_powerdown

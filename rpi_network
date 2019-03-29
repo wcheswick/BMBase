@@ -1,0 +1,54 @@
+#!/bin/sh
+#
+prog=rpi_network
+usage="$prog on|up|down|off"
+#
+#	Power up a (nearly) suspended RPi to activate the network
+#	and do stuff.  These actions are reversed by rpi_powerdown.
+
+case $# in
+1)	;;
+*)	echo "$usage" 1>&2
+	exit 1
+esac
+
+log() {
+	echo "`date`	$*" 1>&2
+}
+
+case "$1" in
+up|on)	
+	ifup wlan0	2>/dev/null || exit 10
+	ssid=`iwconfig wlan0 | grep ESSID |
+		sed 's/^.*://' |
+		tr -d '" '`
+	log "Connected to ESSID '$ssid'"
+
+	#/etc/init.d/networking start	|| exit 11
+
+	for count in 6 5 4 3 2 1 0
+	do
+		ping -c 2 -w 2 8.8.8.8 >/dev/null 2>/dev/null &&
+			break
+		if [ $count -eq 0 ]
+		then
+			log "cannot reach the Internet" 1>&2
+			exit 12
+		fi
+		sleep 3
+	done
+	log "Connected to the Internet"
+
+	ntpdate 3.debian.pool.ntp.org >/dev/null || exit 13
+	;;
+down|off)
+	ifdown wlan0 2>/dev/null || exit 20
+	hciconfig hci down
+
+	# undervoltage indication:
+	#echo input | sudo tee /sys/class/leds/led0/trigger
+	;;
+*)
+	echo "$usage" 1>&2
+	exit 2
+esac

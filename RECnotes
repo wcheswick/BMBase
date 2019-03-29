@@ -1,0 +1,42 @@
+allied electronics, sparkful. industrial cases. sandy!
+
+temp of the pi. voltage.
+
+pcduino. wemospro
+
+
+aek adds:
+
+Small plastic waterproof cases available.
+See Digikey catalog or Pelican catalog or similar brand. 
+Sealing around the USB cable is the hardest part. 
+(Silicon caulking) May want heat sink with several screws
+through case in really warm weather...
+
+david bryan:
+Just go get a NEMA water proof enclosure, and mount it inside using double stick pad.
+
+bogo:
+
+Martin Bogomolni
+Martin Bogomolni * disable LED's ( https://www.jeffgeerling.com/.../controlling-pwr-act-leds... )
+
+* disable HDMI (you don't need it) ( /usr/bin/tvservice -o )
+
+* disable USB Hub/Ethernet ( /etc/init.d/networking stop
+echo 0 > /sys/devices/platform/bcm2708_usb/buspower )
+
+* clock it down to 250MHz ( Adding this lines to your config.txt
+arm_freq_min=250
+core_freq_min=100
+sdram_freq_min=150
+over_voltage_min=0 )
+
+* WiFi power management ( sudo iw dev wlan0 set power_save on )
+
+* Aggressive power management ( echo "powersave" > cpu*/cpufreq/scaling_governor )
+
+echo powersave >/sys/devices/system/cpu/cpufreq/policy0/scaling_governor
+
+Controlling PWR and ACT LEDs on the Raspberry Pi | Jeff Geerling
+JEFFGEERLING.COM

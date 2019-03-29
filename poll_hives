@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+prog=poll_hives
+usage="$prog [-d]"
+#
+#	Fetch and report the hive data.
+
+
+export PATH=$HOME/bin:$PATH
+
+DEBUG=
+case "$1" in
+-d)	DEBUG=true; shift;;
+esac
+
+MAILHOST=96.93.158.218
+
+LOG=$HOME/beeinfo
+mkdir -p $LOG 2>/dev/null
+
+now=`date +%Y%m%d_%H%M`
+
+# sometimes the hci stuff gets hung somehow.  Turning it off and on usually
+# fixes this
+
+P="-m 5 -t 60"
+
+if [ -n "$DEBUG" ]
+then
+	sudo bmscan $P
+	exit 13
+fi
+
+(	sudo bmscan $P 2>/dev/null || (
+		sudo hciconfig hci0 down; sudo hciconfig hci0 up;
+		sudo bmscan $P
+	)
+) | sed "s/^/$now	/" | tee /dev/stderr |
+sort >>$LOG/log 2>&1
+
+which mutt && mutt -s "bee poll" beelog@farmmail.cheswick.com <$LOG/log
+
+sleep 10	# let the mail go
+
+#rpi_powerdown

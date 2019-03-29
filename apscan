@@ -1,0 +1,149 @@
+#!/bin/bash
+#
+prog=apscan
+usage="$prog [-t [file]]"
+#
+#	Scan all the sensors in the apiary
+#
+#	-t	test input, no bluetooth access
+
+#	NB: to reset stupid driver:
+#	hciconfig hci0 down; hciconfig hci0 up
+
+while [ $# -gt 0 ]
+do
+	case $1 in
+	-t)	testinput=true
+		shift;;
+	-*)	echo "$usage" 1>&2
+		exit 1;;
+	*)
+		break
+	esac
+done
+
+case $# in 
+0)	;;
+*)	echo "$usage" 1>&2
+	exit 2
+esac
+
+export  TMPDIR=${TMPDIR:-/tmp}
+export  WRKDIR=${WRKDIR:-$TMPDIR/$prog}
+mkdir -p $WRKDIR
+rm -rf $WRKDIR/*
+
+#trap 'rm -rf $WRKDIR' EXIT
+
+NAMES=$WRKDIR/names
+
+cat >$NAMES <<!EOF
+06:09:16:42:0B:3A	i0
+06:09:16:42:0A:90	i1
+06:09:16:42:0c:2D	i2
+06:09:16:42:0b:8e	i3
+06:09:16:42:0b:a5	i4
+06:09:16:42:0b:c4	i5
+06:09:16:42:0a:9f	i6
+06:09:16:42:0b:ff	i7
+06:09:16:42:0b:f3	i8
+06:09:16:42:0b:c2	i9
+
+06:09:16:43:0B:C1	s0
+06:09:16:43:0b:bf	s1
+06:09:16:43:0b:b5	s2
+06:09:16:43:0c:23	s3
+06:09:16:43:0b:9c	s4
+!EOF
+
+#	case "$testinput" in
+#	"")	sudo hcitool lescan || {
+#			echo "$prog: reseting stupid bluez/hci driver..." 1>&2
+#	
+#			sudo hciconfig hci0 down
+#			sudo hciconfig hci0 up
+#			sudo hcitool lescan
+#		}
+#		;;
+#	*)	cat <<!EOF
+#	LE Scan ...
+#	F8:04:2E:DF:1A:6D (unknown)
+#	06:09:16:42:0B:8E (unknown)
+#	06:09:16:42:0B:8E 42:0B:8E
+#	06:09:16:42:0B:FF (unknown)
+#	06:09:16:42:0B:FF 42:0B:FF
+#	06:09:16:43:0B:B5 (unknown)
+#	06:09:16:42:0B:C4 (unknown)
+#	06:09:16:42:0B:C4 42:0B:C4
+#	06:09:16:43:0B:BF (unknown)
+#	06:09:16:43:0B:9C (unknown)
+#	06:09:16:43:0B:9C 43:0B:9C
+#	06:09:16:42:0A:9F (unknown)
+#	06:09:16:42:0A:9F 42:0A:9F
+#	06:09:16:43:0B:BF 43:0B:BF
+#	06:09:16:42:0B:F3 (unknown)
+#	06:09:16:42:0B:F3 42:0B:F3
+#	06:09:16:42:0C:2D (unknown)
+#	06:09:16:42:0C:2D 42:0C:2D
+#	06:09:16:43:0C:23 (unknown)
+#	06:09:16:43:0C:23 43:0C:23
+#	06:09:16:42:0B:A5 (unknown)
+#	06:09:16:42:0B:A5 42:0B:A5
+#	06:09:16:43:0B:B5 43:0B:B5
+#	77:15:63:28:21:E3 (unknown)
+#	77:15:63:28:21:E3 (unknown)
+#	88:63:DF:C6:14:A8 (unknown)
+#	88:63:DF:C6:14:A8 (unknown)
+#	!EOF
+#	esac |
+
+( sudo hcitool lescan || {
+		echo "$prog: reseting stupid bluez/hci driver..." 1>&2
+
+		sudo hciconfig hci0 down
+		sudo hciconfig hci0 up
+		sudo hcitool lescan
+	}
+) |
+awk -W interactive -v namefn=$NAMES -v OFS='	' '
+BEGIN {	n=0
+	while ((getline <namefn) > 0) {
+		if (NF != 2)
+			continue
+                known[tolower($1)] = $2
+		n++
+        }
+#	print n " names known" >"/dev/stderr"
+	beemac = "06:09:16"
+}
+
+NF != 2 {	# print "skipped: " $0 >"/dev/stderr"
+		next }
+
+{	mac = tolower($1)
+	if (split(mac, octets, ":") != 6)
+		next
+
+	if (mac in named)
+		next
+
+	if (mac in known) {
+		named[mac] = known[mac]
+	} else {
+		suppliedname = $2
+		if (split(suppliedname, octets, ":") == 3 ||
+		    suppliedname == "(unknown)") {
+			if (mac in unknown)
+				next
+			if (substr(mac, 1, length(beemac)) == beemac)
+				suppliedname = "unknown bee monitor"		
+			unknown[mac]++
+			print mac, "(" suppliedname ")"
+			next
+		}
+		named[mac] = suppliedname
+	}
+	print mac, named[mac]
+	fflush("")
+}'
+

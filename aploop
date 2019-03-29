@@ -1,0 +1,81 @@
+#!/bin/bash
+#
+prog=aploop
+usage="$prog [-d]"
+#
+#	apiary monitoring loop
+
+export PATH=$HOME/bin:$PATH
+
+DEBUG=
+case "$1" in
+-d)	DEBUG=true; shift;;
+esac
+
+MAILHOST=96.93.158.218
+
+STARTUPDELAY=15
+SCANTIME=20
+SLEEPTIME=600
+
+LOG=~ches/beeinfo
+mkdir -p $LOG 2>/dev/null
+
+log() {
+	echo "`date`	$*" 1>&2
+}
+
+P="-m 5 -t $SCANTIME"
+(	log "starting aploop in $STARTUPDELAY seconds"
+	sleep $STARTUPDELAY
+	log "starting aploops"
+
+	while true
+	do
+		log "Scanning sensors for $SCANTIME seconds..."
+		sudo bmscan $P | tee -a $LOG/raw |
+			sort |
+			sed "s/^/`date`	/" | tee -a $LOG/scan >/var/tmp/rpt
+		nsens=`wc -l </var/tmp/rpt | tr -d ' '`
+		log "... complete, found $nsens"
+
+		if rpi_network up
+		then
+			log "Mailing results"
+			which mutt >/dev/null && {
+				mutt -s "bee poll" beelog@farmmail.cheswick.com </var/tmp/rpt
+
+				log "Awaiting mail transmission..."
+				sent=false
+				for i in 10 9 8 7 6 5 4 3 2 1
+				do
+					case `mailq` in
+					*empty)	sent=true
+						break;;
+					*)	sleep 1;;
+					esac
+				done
+				$sent || log "failed, `ifconfig -a; mailq`"
+			}
+
+			log "Shutting down network"
+			rpi_network off
+		else
+			log "Network did not come up"
+		fi
+
+		log "Powering down for $SLEEPTIME"
+		rpi_power down
+
+		rpi_light off
+
+		sleep 5
+		tvservice -o
+
+		sleep $SLEEPTIME
+		rpi_light on
+
+		log "Powering up..."
+		rpi_power up
+	done
+) | tee /dev/stderr 2>>$LOG/log

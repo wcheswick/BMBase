@@ -1,0 +1,56 @@
+\#!/bin/sh
+#
+prog=pollsensors
+usage="$prog [-t timeout]"
+#
+#	This is the data collection routine.
+
+TIMEOUT=60
+READINGS=/tmp/readings
+READINGSDIR=/tmp/$prog
+
+while [ $# -gt 0 ]
+do
+	case "$1" in
+	-t)	shift; TIMEOUT="$1"; shift;;
+	*)
+		echo "$usage" 1>&2
+		exit 1
+	esac
+done
+
+case $# in
+0)	;;
+*)	echo "$usage" 1>&2
+	exit 1
+esac
+
+if [ ! -f $READINGS ]
+then
+	>$READINGS	|| exit 90
+fi
+
+if [ ! -d $READINGSDIR ]
+then
+	mkdir -p $READINGSDIR 	|| exit 2
+fi
+
+NOW=`date +%Y/%m/%d-%H:%M`
+CMD="bmscan -t $TIMEOUT"
+
+(	$CMD 2>/dev/null || (
+		sudo hciconfig hci0 down; sudo hciconfig hci0 up;
+		$CMD )
+) >/tmp/new
+
+now=`date +%Y%m%d_%H%M`
+pktvol=`ifconfig | grep 'packets [^0]'`
+
+(	cat /tmp/new
+	echo "$pktvol"
+) | tee $READINGSDIR/$now |
+sed "s;^;$NOW	;" >>$READINGS
+
+rm -f /tmp/new
+
+
