@@ -37,7 +37,7 @@ broodminder.o:	broodminder.c broodminder.h
 
 install::	${BIN}/bmscan $(BIN)/poll_hives \
 	${BIN}/aploop ${BIN}/rpi_network ${BIN}/rpi_light ${BIN}/rpi_power \
-	${BIN}/pollsensors
+	${BIN}/BMpoll ${BIN}BMpush
 
 ${BIN}/rpi_power:	rpi_power
 	sudo cp rpi_power ${BIN}/rpi_power
@@ -58,8 +58,11 @@ ${BIN}/bmscan:	bmscan
 ${BIN}/poll_hives:	poll_hives
 	sudo cp poll_hives ${BIN}/poll_hives
 
-${BIN}/pollsensors:	pollsensors
-	sudo cp pollsensors ${BIN}/pollsensors
+${BIN}/BMpoll:	BMpoll
+	sudo cp BMpoll ${BIN}/BMpoll
+
+${BIN}/BMpush:	BMpush
+	sudo cp BMpus ${BIN}/BMpush
 
 clean::
 	rm -f *.o *core*

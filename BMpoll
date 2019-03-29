@@ -1,12 +1,11 @@
 \#!/bin/sh
 #
-prog=pollsensors
+prog=pollBM
 usage="$prog [-t timeout]"
 #
 #	This is the data collection routine.
 
 TIMEOUT=60
-READINGS=/tmp/readings
 READINGSDIR=/tmp/$prog
 
 while [ $# -gt 0 ]
@@ -24,11 +23,6 @@ case $# in
 *)	echo "$usage" 1>&2
 	exit 1
 esac
-
-if [ ! -f $READINGS ]
-then
-	>$READINGS	|| exit 90
-fi
 
 if [ ! -d $READINGSDIR ]
 then
@@ -48,8 +42,7 @@ pktvol=`ifconfig | grep 'packets [^0]'`
 
 (	cat /tmp/new
 	echo "$pktvol"
-) | tee $READINGSDIR/$now |
-sed "s;^;$NOW	;" >>$READINGS
+) > $READINGSDIR/$now
 
 rm -f /tmp/new
 
