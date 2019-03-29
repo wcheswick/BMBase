@@ -9,7 +9,7 @@ export	POLLDIR=/tmp/BMpolldata
 rpi_power up
 
 BMfetch
-BMpush	farm:BM
+BMpush	farm
 
 rpi_power down
 
