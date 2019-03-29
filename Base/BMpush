@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+prog=BMpush
+usage="$prog targethost"
+#
+#	push out all the unsent data using rsync to a target host, directory
+#		BM/<thishostname>
+
+case $# in
+1)	targethost="$1";	shift;;
+*)
+	echo "$usage" 1>&2
+	exit 1
+esac
+
+
+if [ ! -n "$POLLDIR" ]
+then
+	echo "$prog: env POLLDIR missing, aborted" 1>&2
+	exit 2
+fi
+
+if [ ! -s "$POLLDIR" ]
+then
+	echo "$prog: POLLDIR directory missing, aborted" 1>&2
+	exit 3
+fi
+
+
+(cd "$POLLDIR"; rsync -a . $targethost:BM/`hostname -s`)
+

@@ -34,3 +34,24 @@ serving computer.  At this point, the RPi could shut down for an hour, preservin
 if a device were available to turn the power back on 59 minutes later.  I haven’t found anything
 that can do that, to my surprise: IoT needs this.
 
+Installation
+
+
+This software is used in two parts, the base, and the server.  The base
+contains the Bluetooth software needed to access the Broodminder
+stuff.
+
+The server processes the raw data, creating a CSV file and a plot
+of the data.
+
+To install the base software in a Raspberry Pi, run
+	Installbase
+Sudo needs to work.
+
+It will prepare the Pi for the software.  Then
+	make installbase
+to build and install the base software
+
+In the server, there is no Installserver, since I don't use Linux there.
+You will need gnuplot.
+	make installserver

@@ -1,12 +1,12 @@
-\#!/bin/sh
+#!/bin/sh
 #
-prog=pollBM
+prog=BMfetch
 usage="$prog [-t timeout]"
 #
 #	This is the data collection routine.
+#	env variable POLLDIR contains the directory for the raw data
 
 TIMEOUT=60
-READINGSDIR=/tmp/$prog
 
 while [ $# -gt 0 ]
 do
@@ -21,12 +21,18 @@ done
 case $# in
 0)	;;
 *)	echo "$usage" 1>&2
-	exit 1
+	exit 2
 esac
 
-if [ ! -d $READINGSDIR ]
+if [ ! -n "$POLLDIR" ]
 then
-	mkdir -p $READINGSDIR 	|| exit 2
+	echo "$prog: env POLLDIR missing, aborted" 1>&2
+	exit 3
+fi
+
+if [ ! -d "$POLLDIR" ]
+then
+	mkdir -p "$POLLDIR" 	|| exit 3
 fi
 
 NOW=`date +%Y/%m/%d-%H:%M`
@@ -42,7 +48,7 @@ pktvol=`ifconfig | grep 'packets [^0]'`
 
 (	cat /tmp/new
 	echo "$pktvol"
-) > $READINGSDIR/$now
+) > $POLLDIR/$now
 
 rm -f /tmp/new
 

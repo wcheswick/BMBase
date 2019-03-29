@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+prog=BMpoll
+usage="$prog"
+#
+
+export	POLLDIR=/tmp/BMpolldata
+
+rpi_power up
+
+BMfetch
+BMpush	farm:BM
+
+rpi_power down
+
