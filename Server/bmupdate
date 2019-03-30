@@ -55,3 +55,11 @@ fi
 		next
 	}'
 )
+
+bmplotg $host /tmp/$host.png
+
+if [ -w /web/$host.png ]
+then
+	cp /tmp/$host.png /web/$host.png &&
+		rm /tmp/$host.png
+fi
