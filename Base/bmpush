@@ -4,7 +4,7 @@ prog=BMpush
 usage="$prog targethost"
 #
 #	push out all the unsent data using rsync to a target host, directory
-#		BM/<thishostname>
+#		BM/<thishostname>/raw
 
 case $# in
 1)	targethost="$1";	shift;;
@@ -13,6 +13,8 @@ case $# in
 	exit 1
 esac
 
+ME=`hostname -s`
+TARGETRAW="BM/$ME/raw"
 
 if [ ! -n "$POLLDIR" ]
 then
@@ -26,6 +28,9 @@ then
 	exit 3
 fi
 
+ssh $targethost "mkdir -p $TARGETRAW 2>/dev/null"
 
-(cd "$POLLDIR"; rsync -a . $targethost:BM/`hostname -s`)
+(cd "$POLLDIR"; rsync -a . $targethost:$TARGETRAW)
+
+ssh $targethost "bmupdate $ME"
 

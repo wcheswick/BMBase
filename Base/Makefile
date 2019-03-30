@@ -5,7 +5,7 @@ all::
 	(cd src; make)
 
 install::	${BIN}/bmscan ${BIN}/rpi_power \
-	${BIN}/BMfetch ${BIN}/BMpoll ${BIN}/BMpush
+	${BIN}/bmfetch ${BIN}/bmpoll ${BIN}/bmpush
 
 ${BIN}/bmscan:
 	(cd src; make install)
@@ -13,14 +13,14 @@ ${BIN}/bmscan:
 ${BIN}/rpi_power:	rpi_power
 	sudo cp rpi_power ${BIN}/rpi_power
 
-${BIN}/BMpoll:	BMpoll
-	sudo cp BMpoll ${BIN}/BMpoll
+${BIN}/bmpoll:	bmpoll
+	sudo cp bmpoll ${BIN}/bmpoll
 
-${BIN}/BMpush:	BMpush
-	sudo cp BMpush ${BIN}/BMpush
+${BIN}/bmpush:	bmpush
+	sudo cp bmpush ${BIN}/bmpush
 
-${BIN}/BMfetch:	BMfetch
-	sudo cp BMfetch ${BIN}/BMfetch
+${BIN}/bmfetch:	bmfetch
+	sudo cp bmfetch ${BIN}/bmfetch
 
 clean::
 	(cd src; make clean)

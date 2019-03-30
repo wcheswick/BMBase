@@ -4,12 +4,12 @@ prog=BMpoll
 usage="$prog"
 #
 
-export	POLLDIR=/tmp/BMpolldata
+export	POLLDIR=/tmp/bmpolldata
 
 rpi_power up
 
-BMfetch
-BMpush	farm
+bmfetch
+bmpush	farm
 
 rpi_power down
 
