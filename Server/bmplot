@@ -1,9 +1,5 @@
 #!/bin/sh
 #
-# Advisory CA-1998-05 Multiple Vulnerabilities in BIND
-
-# cd 1998; for i in *; do sed "s/^/1998$i  /" $i; done >>../data
-# cd 1999; for i in *; do sed "s/^/1999$i  /" $i; done >>../data
 
 if [ ! -f sum ]
 then

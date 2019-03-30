@@ -1,38 +1,59 @@
 #!/bin/sh
 #
-prog=bmrawtocsv
-usage="$prog [srcdir]"
+prog=bmplotg
+usage="usage: $prog host"
 #
-#	read a series of readings from BMBase in a given directory (or current directory, by default),
-#	and assemble into a CSV, that is written to stdout
+#	Use gnuplot to create a plot for machine "host"
 #
 #	This program will create files in the current directory.
 
 case $# in
-1)	dir="$1";	shift;;
-0)	dir=".";;
+1)	host="$1";	shift;;
 *)	echo "$usage" 1>&2
 	exit 1
 esac
 
-if [ -s "$dir/Names" ]
+TMPDIR=${TMPDIR:-/var/tmp}
+WRKDIR=${WRKDIR:-${TMPDIR}/${prog}}
+mkdir -p $WRKDIR        || exit 100
+rm -rf $WRKDIR/*
+
+DIR=$HOME/BM/$host
+
+if [ ! -d $DIR/db ]
 then
-	names="$dir/Names"
+	echo "$prog: `hostname -s`: dir '$DIR/raw' missing, aborted" 1>&2
+	exit 2
+fi
+
+if [ -s "$DIR/Names" ]
+then
+	names="$DIR/Names"
 else
 	names=/dev/null
 fi
 
-grep . "$dir"/2* |	# all the readings files, with their paths
-sed 's;^.*/;;'	|	# remove leading path elements
-sed 's/:/ /'	|	# remove colon after the file name, which is also the time stamp
-awk -v nfn=$names -v OFS='	' '
-BEGIN {	while ((getline <nfn) > 0) {
-		n=split($0, f, /[	]*/)
-		if (f[2] == "")
-			f[2] = substr(f[1],13,5) 
-		displayname[toupper(f[1])] = f[2]
+for sensor in `ls $DIR/db | egrep -v "RX|TX"`
+do
+	cat $DIR/db/$sensor |
+	awk  -v nfn=$names -v sensor="$sensor" '
+	BEGIN {	while ((getline <nfn) > 0) {
+			n=split($0, f, /[	]*/)
+			if (f[2] == "")
+				f[2] = substr(f[1],13,5) 
+			displayname[toupper(f[1])] = f[2]
+		}
+		sensor_name = toupper(sensor)
+		if (sensor_name in displayname)
+			sensor_name = displayname[sensor_name]
+print "sensor is " sensor_name
 	}
-}
+	'
+done
+
+exit 13
+
+awk -v nfn=$names -v OFS='	' '
 
 /RX|TX/	{
 	date = $1
@@ -46,9 +67,6 @@ BEGIN {	while ((getline <nfn) > 0) {
 /^2.*/ {
 	date=$1
 	name=$2
-	uname = toupper(name)
-	if (uname in displayname)
-		name = displayname[uname]
 	type = $3
 	ver = $4
 	batt = $5
