@@ -1,0 +1,11 @@
+set timefmt "%Y%m%d_%H%M"
+set xdata time
+set format x "%H"
+set border 3
+set size 2,2
+set xlabel "Date"
+set ylabel "Temp/Hum"
+set terminal postscript eps color 24
+set output "plot.ps"
+
+plot "west" using 1:2 title "west" with lines, "roof" using 1:2 title "roof" with lines, "0B:8E" using 1:2 title "0B:8E" with lines, "north wall" using 1:2 title "north wall" with lines, "0C:11" using 1:2 title "0C:11" with lines, "0A:90" using 1:2 title "0A:90" with lines, "floor" using 1:2 title "floor" with lines, 

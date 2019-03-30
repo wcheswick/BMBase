@@ -1,0 +1,89 @@
+#!/bin/sh
+#
+prog=bmrawtocsv
+usage="$prog [srcdir]"
+#
+#	read a series of readings from BMBase in a given directory (or current directory, by default),
+#	and assemble into a CSV, that is written to stdout
+#
+#	This program will create files in the current directory.
+
+case $# in
+1)	dir="$1";	shift;;
+0)	dir=".";;
+*)	echo "$usage" 1>&2
+	exit 1
+esac
+
+if [ -s "$dir/Names" ]
+then
+	names="$dir/Names"
+else
+	names=/dev/null
+fi
+
+grep . "$dir"/2* |	# all the readings files, with their paths
+sed 's;^.*/;;'	|	# remove leading path elements
+sed 's/:/ /'	|	# remove colon after the file name, which is also the time stamp
+awk -v nfn=$names -v OFS='	' '
+BEGIN {	while ((getline <nfn) > 0) {
+		n=split($0, f, /[	]*/)
+		if (f[2] == "")
+			f[2] = substr(f[1],13,5) 
+		displayname[toupper(f[1])] = f[2]
+	}
+}
+
+/RX|TX/	{
+	date = $1
+	type = $2
+	pkts = $4
+	bytes = $6
+	print	date, pkts, bytes >type
+	next
+}  
+
+/^2.*/ {
+	date=$1
+	name=$2
+	uname = toupper(name)
+	if (uname in displayname)
+		name = displayname[uname]
+	type = $3
+	ver = $4
+	batt = $5
+	temp = $6
+	hum = $7
+	# (there is more: weight, and data in the device)
+	sub(/%/, "", batt)
+	sub(/F/, "", temp)
+	sub(/%/, "", hum)
+	print date, temp, hum >name
+	next
+}
+END {	for (name in displayname) {
+		n = "\"" displayname[name] "\""
+		printf "%s using 1:2 title %s with lines, ", n, n >"plot"
+	}
+	printf "\n\n" >"plot"
+}
+'
+
+
+cat >p <<!EOF 
+set timefmt "%Y%m%d_%H%M"
+set xdata time
+set format x "%H"
+set border 3
+set size 2,2
+set xlabel "Date"
+set ylabel "Temp/Hum"
+set terminal postscript eps color 24
+set output "plot.ps"
+
+plot `cat plot`
+!EOF
+
+gnuplot <p
+
+convert plot.ps plot.png
