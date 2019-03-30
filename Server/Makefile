@@ -1,11 +1,19 @@
-BIN=${HOME}/bin
+HOMEBIN=${HOME}/bin
+
+# for a FreeBSD make:
+
+PROGS=bmplot bmplotg bmupdate
 
 all::
 
-install::	${BIN}/bmrawtocsv
+.for i in ${PROGS}
+install::	${HOMEBIN}/$i
 
-${BIN}/bmrawtocsv:	bmrawtocsv
-	cp bmrawtocsv ${BIN}/rawtocsv
+${HOMEBIN}/$i:	$i
+	cp $> $@
+.endfor
 
 test::
-	./bmrawtocsv ${HOME}/BM/green
+	./bmupdate green
+	./bmplot green
+

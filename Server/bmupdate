@@ -1,0 +1,76 @@
+#!/bin/sh
+#
+prog=bmupdate
+usage="$prog host"
+#
+#	Create updated database files using all the raw data in $HOME/BM/<host>/raw.
+#	Files are updated in $HOME/BM/db
+
+
+case $# in
+1)	host="$1";	shift;;
+*)	echo "usage: $usage" 1>&2
+	exit 1
+esac
+
+DIR=$HOME/BM/$host
+
+if [ ! -d $DIR/raw ]
+then
+	echo "$prog: `hostname -s`: dir '$DIR/raw' missing, aborted" 1>&2
+	exit 2
+fi
+
+(cd $DIR
+
+mkdir -p db 2>/dev/null
+
+if [ -s "Names" ]
+then
+	names="Names"
+else
+	names=/dev/null
+fi
+
+grep . raw/2*	|	# all the readings files, with their paths
+sed 's;^.*/;;'	|	# remove leading path elements
+sed 's/:/ /'	|	# remove colon after the file name, which is also the time stamp
+awk -v nfn=$names -v OFS='	' '
+BEGIN {	while ((getline <nfn) > 0) {
+		n=split($0, f, /[	]*/)
+		if (f[2] == "")
+			f[2] = substr(f[1],13,5) 
+		displayname[toupper(f[1])] = f[2]
+	}
+}
+
+/RX|TX/	{
+	date = $1
+	type = $2
+	pkts = $4
+	bytes = $6
+	fn = "db/" type
+	print	date, pkts, bytes >fn
+	next
+}  
+
+/^2.*/ {
+	date=$1
+	name=$2
+	uname = toupper(name)
+	if (uname in displayname)
+		name = displayname[uname]
+	type = $3
+	ver = $4
+	batt = $5
+	temp = $6
+	hum = $7
+	# (there is more: weight, and data in the device)
+	sub(/%/, "", batt)
+	sub(/F/, "", temp)
+	sub(/%/, "", hum)
+	fn = "db/" name
+	print date, temp, hum >fn
+	next
+}'
+)
