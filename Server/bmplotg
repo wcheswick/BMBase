@@ -1,14 +1,15 @@
 #!/bin/sh
 #
 prog=bmplotg
-usage="usage: $prog host"
+usage="usage: $prog host pngoutput"
 #
 #	Use gnuplot to create a plot for machine "host"
 #
 #	This program will create files in the current directory.
 
 case $# in
-1)	host="$1";	shift;;
+2)	host="$1";	shift;
+	outpng="$1";	shift;;
 *)	echo "$usage" 1>&2
 	exit 1
 esac
@@ -33,75 +34,32 @@ else
 	names=/dev/null
 fi
 
-for sensor in `ls $DIR/db | egrep -v "RX|TX"`
-do
-	cat $DIR/db/$sensor |
-	awk  -v nfn=$names -v sensor="$sensor" '
-	BEGIN {	while ((getline <nfn) > 0) {
-			n=split($0, f, /[	]*/)
-			if (f[2] == "")
-				f[2] = substr(f[1],13,5) 
-			displayname[toupper(f[1])] = f[2]
-		}
-		sensor_name = toupper(sensor)
-		if (sensor_name in displayname)
-			sensor_name = displayname[sensor_name]
-print "sensor is " sensor_name
-	}
-	'
-done
-
-exit 13
-
-awk -v nfn=$names -v OFS='	' '
-
-/RX|TX/	{
-	date = $1
-	type = $2
-	pkts = $4
-	bytes = $6
-	print	date, pkts, bytes >type
-	next
-}  
-
-/^2.*/ {
-	date=$1
-	name=$2
-	type = $3
-	ver = $4
-	batt = $5
-	temp = $6
-	hum = $7
-	# (there is more: weight, and data in the device)
-	sub(/%/, "", batt)
-	sub(/F/, "", temp)
-	sub(/%/, "", hum)
-	print date, temp, hum >name
-	next
-}
-END {	for (name in displayname) {
-		n = "\"" displayname[name] "\""
-		printf "%s using 1:2 title %s with lines, ", n, n >"plot"
-	}
-	printf "\n\n" >"plot"
-}
-'
-
-
-cat >p <<!EOF 
+(
+cat  <<!EOF 
 set timefmt "%Y%m%d_%H%M"
 set xdata time
-set format x "%H"
+set format x "%a %H"
 set border 3
 set size 2,2
 set xlabel "Date"
-set ylabel "Temp/Hum"
+set ylabel "Temp"
 set terminal postscript eps color 24
-set output "plot.ps"
+set output "$WRKDIR/bm.ps"
 
-plot `cat plot`
 !EOF
+	echo -n "plot "
+	for sensor in `ls $DIR/db | egrep -v "RX|TX"`
+	do
+		display_name=`grep "^$sensor	" $names | sed 's/^.*	//'`
+		if [ ! -n "$display_name" ]
+		then
+			display_name=`echo "$sensor" | sed 's/..:..:..:..://'`
+		fi
 
-gnuplot <p
+		echo "\"$DIR/db/$sensor\" using 1:2 title \"$display_name\" with lines lw 8, \\"
+	done
+) >>$WRKDIR/gnuplot.in
 
-convert plot.ps plot.png
+gnuplot <$WRKDIR/gnuplot.in
+
+convert $WRKDIR/bm.ps $outpng
