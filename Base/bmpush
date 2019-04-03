@@ -33,5 +33,9 @@ ssh $targethost "mkdir -p $TARGETRAW 2>/dev/null"
 (cd "$POLLDIR"; rsync -a . $targethost:$TARGETRAW)
 
 ssh $targethost "bmupdate $ME"
-rsync -a $HOME/BM/Names $targethost:"BM/$ME"
+
+if [ -s $HOME/BM/Names ]
+then
+	rsync -a $HOME/BM/Names $targethost:"BM/$ME"
+fi
 
