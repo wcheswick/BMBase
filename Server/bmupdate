@@ -28,7 +28,6 @@ fi
 	grep . /dev/null raw/2*	|	# all the readings files, with their paths
 	sed 's;^.*/;;'	|	# remove leading path elements
 	sed 's/:/ /'	|	# remove colon after the file name, which is also the time stamp
-tee /tmp/x |
 	awk -v OFS='	' '
 	$2 ~ /RX|TX/	{
 		date = $1
@@ -69,8 +68,8 @@ tee /tmp/x |
 
 bmplotg $host /tmp/$host.png
 
-if [ -w /web/$host.png ]
+if [ -d /web/hives ]
 then
-	cp /tmp/$host.png /web/$host.png &&
+	cp /tmp/$host.png /web/hives/$host.png &&
 		rm /tmp/$host.png
 fi
