@@ -23,12 +23,14 @@ fi
 
 (cd $DIR
 	mkdir -p db 2>/dev/null
-	
-	grep . raw/2*	|	# all the readings files, with their paths
+
+	# why /dev/null?  so grep will include the file names, even if only one file	
+	grep . /dev/null raw/2*	|	# all the readings files, with their paths
 	sed 's;^.*/;;'	|	# remove leading path elements
 	sed 's/:/ /'	|	# remove colon after the file name, which is also the time stamp
+tee /tmp/x |
 	awk -v OFS='	' '
-	/RX|TX/	{
+	$2 ~ /RX|TX/	{
 		date = $1
 		type = $2
 		pkts = $4
@@ -42,6 +44,10 @@ fi
 		date=$1
 		name = toupper($2)
 		type = $3
+		if (type != "scale" && type != "sensor") {
+			print "bad type: $0" >"/dev/stderr"
+			next
+		}
 		ver = $4
 		batt = $5
 		temp = $6
@@ -51,7 +57,12 @@ fi
 		sub(/F/, "", temp)
 		sub(/%/, "", hum)
 		fn = "db/" name
-		print date, temp, hum >fn
+		if (type == "scale") {
+			w = $10 + $11
+			print date, temp, hum, w >fn
+		} else {
+			print date, temp, hum >fn
+		}
 		next
 	}'
 )
