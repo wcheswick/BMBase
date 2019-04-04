@@ -44,7 +44,7 @@ CMD="bmscan -t $TIMEOUT"
 ) >/tmp/new
 
 now=`date +%Y%m%d_%H%M`
-pktvol=`ifconfig | grep 'packets [^0]'`
+pktvol=`ifconfig | grep 'packets' | sort -k3,3n -k1,1 | tail -2`
 
 (	cat /tmp/new
 	echo "$pktvol"
