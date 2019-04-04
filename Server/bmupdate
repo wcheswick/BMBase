@@ -64,6 +64,27 @@ fi
 		}
 		next
 	}'
+
+	# we may have multiple lines for TX and RX entries for each reading.
+	# go through and pick the largest one
+	for i in db/RX db/TX
+	do
+		awk <$i >$i.new -v OFS='	' '
+		BEGIN {	pkts = bytes = 0 }
+		$1 != last && (last != "") {
+			print last, pkts, bytes
+			pkts = bytes = 0
+		}
+		{	last = $1
+			if ($2 > pkts)
+				pkts = $2
+			if ($3 > bytes)
+				bytes = $3
+		}
+		END {	if (last != "")
+				print last, pkts, bytes
+		}' && mv $i.new $i || exit 99
+	done
 )
 
 bmplotg $host /tmp/$host.png

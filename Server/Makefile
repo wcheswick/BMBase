@@ -2,7 +2,7 @@ HOMEBIN=${HOME}/bin
 
 # for a FreeBSD make:
 
-PROGS=bmplot bmplotg bmupdate
+PROGS=bmplot bmplotg bmupdate bmplotall
 
 all::
 
