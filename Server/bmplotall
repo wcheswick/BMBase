@@ -84,7 +84,7 @@ sph=`expr 60 \* 60 \* 24`
 days=`expr $totalsecs / $sph`
 hours=`expr $days \* 24`
 
-W=7
+WID=7
 
 # X position for given time
 
@@ -110,6 +110,8 @@ mkdir -p $W
 rm -rf $W/*
 
 O=$WRKDIR/ps
+G=$WRKDIR/gr
+mkdir -p $G
 
 for ap in $apswithdata
 do
@@ -125,6 +127,12 @@ do
 	if [ -s $PLOTLIST/$ap/scale ]
 	then
 		echo "	scale"  >"/dev/stderr"
+cat <<!EOF
+.G1
+frame ht 2 wid $WID bot solid left solid top invis right invis
+label left "$ap Scales"  left 0.2
+ticks left
+!EOF
 		for device in `cat $PLOTLIST/$ap/scale`
 		do
 			display_name=`grep "^$device	" $names | sed 's/^.*	//'`
@@ -132,14 +140,40 @@ do
 			then
 				display_name=`echo "$device" | sed 's/..:..:..:..://'`
 			fi
-	
 			echo "		$BMDIR/$ap/db/$device ($display_name)">"/dev/stderr"
+
+			f=$G/ap-$device.dat
+			cat $BMDIR/$ap/db/$device |
+			while read line
+			do
+				set $line
+				t=$1
+				temp=$2
+				hum=$3
+				w=$4
+				x=`X $t`
+				echo $x $w
+			done >$f
+
+cat <<!EOF
+new color "blue"
+draw solid
+copy "$f"
+!EOF
 		done
 	fi
-
+cat <<'!EOF'
+.G2
+!EOF
 	if [ -s $PLOTLIST/$ap/sensor ]
 	then
 		echo "	sensor"  >"/dev/stderr"
+cat <<!EOF
+.G1
+frame ht 3 wid $WID bot solid left solid top invis right invis
+label left "$ap Temp"  left 0.2
+ticks left
+!EOF
 		for device in `cat $PLOTLIST/$ap/sensor`
 		do
 			display_name=`grep "^$device	" $names | sed 's/^.*	//'`
@@ -149,8 +183,29 @@ do
 			fi
 	
 			echo "		$BMDIR/$ap/db/$device ($display_name)">"/dev/stderr"
+
+			f=$G/ap-$device.dat
+			cat $BMDIR/$ap/db/$device |
+			while read line
+			do
+				set $line
+				t=$1
+				temp=$2
+				hum=$3
+				x=`X $t`
+				echo $x $temp
+			done >$f
+
+cat <<!EOF
+new color "red" thickness 1.0
+draw solid
+copy "$f"
+!EOF
 		done
 	fi
+cat <<'!EOF'
+.G2
+!EOF
 
 	if [ -s $PLOTLIST/$ap/IO ]
 	then
@@ -158,6 +213,24 @@ do
 		echo "		$BMDIR/$ap/db/RX">"/dev/stderr"
 		echo "		$BMDIR/$ap/db/TX">"/dev/stderr"
 	fi
-done | tee grap | pic | groff >$O.ps
+done | tee $WRKDIR/grap | grap | pic | groff >$WRKDIR/o.ps && gv $WRKDIR/o.ps
+# convert ps tdo eps
 
-convert $O.ps $outpng
+exit 15
+
+convert $O $WRKDIR/tmp.eps
+
+if [ -s "$WRKDIR/tmp.eps.0" ]
+then
+        echo "warning, multipage text" 1>&2
+        cp $WRKDIR/tmp.eps.0 $WRKDIR/tmp.eps
+        rm -f $WRKDIR/*.eps.*
+fi
+
+# doctor the eps to work, we hope, with any postscript engine.
+
+grep -v '^%%Trailer'    <$WRKDIR/tmp.eps	|
+sed     's/showpage //'			|
+sed 's/showpage$//' >$WRKDIR/dtmp.eps
+
+convert $WRKDIR/dtmp.eps $outpng

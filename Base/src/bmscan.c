@@ -88,8 +88,7 @@ close_hci(int fd) {
 	setsockopt(fd, SOL_HCI, HCI_FILTER, &of, sizeof(of));
 }
 
-static char *type2str(uint8_t type)
-{
+static char *type2str(uint8_t type) {
 	switch (type) {
 	case SCO_LINK:
 		return "SCO";
@@ -104,8 +103,7 @@ static char *type2str(uint8_t type)
 	}
 }
 
-static void sigint_handler(int sig)
-{
+static void sigint_handler(int sig) {
 	signal_received = sig;
 }
 
@@ -114,9 +112,9 @@ static void do_timeout(int sig) {
 	exit(0);
 }
 
-static void eir_parse_name(uint8_t *eir, size_t eir_len,
-						char *buf, size_t buf_len)
-{
+static void eir_parse_name(uint8_t *eir, 
+				size_t eir_len,
+				char *buf, size_t buf_len) {
 	size_t offset;
 
 	offset = 0;
@@ -150,8 +148,7 @@ failed:
 	snprintf(buf, buf_len, "(unknown)");
 }
 
-static int read_flags(uint8_t *flags, const uint8_t *data, size_t size)
-{
+static int read_flags(uint8_t *flags, const uint8_t *data, size_t size) {
 	size_t offset;
 
 	if (!flags || !data)
@@ -245,7 +242,7 @@ dump_bm_adv(bm_adv_resp *bm_adv) {
 
 	printf("v%d.%d", bm_adv->bm_devmajor, bm_adv->bm_devminor);
 	switch (bm_adv->bm_devmajor) { 
-	case 1:
+	case 1:	// old version, unlikely to ever be seen
 		printf("  %3d%%  samples %d  temp %d",
 			bm_adv->v1.bm_battery, 
 			USHORT(bm_adv->v1.bm_samples),
