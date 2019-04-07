@@ -1,0 +1,134 @@
+#!/bin/sh
+#
+prog=bmplotall
+usage="usage: $prog pngoutput"
+#
+#	Combine all the Broodminder data into a single plot for the web.
+
+case $# in
+1)	outpng="$1";	shift;;
+*)	echo "$usage" 1>&2
+	exit 1
+esac
+
+TMPDIR=${TMPDIR:-/var/tmp}
+WRKDIR=${WRKDIR:-${TMPDIR}/${prog}}
+mkdir -p $WRKDIR        || exit 100
+rm -rf $WRKDIR/*
+
+PLOTIN=$WRKDIR/gnuplot.in
+PLOTLIST=$WRKDIR/plotlist
+
+mkdir -p $PLOTLIST
+rm -rf $PLOTLIST/*
+
+BMDIR=$HOME/BM
+cd $BMDIR
+
+aps=`ls -d */db | sed 's:/.*::'`	# names of apiaries that have useful data
+for ap in $aps
+do
+	mkdir $PLOTLIST/$ap	|| exit 90
+done
+
+ls */db/* | 
+awk -v FS=/ -v OFS='	' -v pldir=$PLOTLIST '
+{	ap=$1
+	device=$3
+	fn = pldir "/" ap
+	if (device ~ /TX|RX/) {
+		sfn = fn "/IO"
+		print "IO" >>sfn
+		next
+	}
+	n = split(device, octets, ":")
+	if (n != 6) {
+		print "confused by '" $0 "', skipping" >"/dev/stderr"
+		next
+	}
+	if (octets[4] == 43) {
+		sfn = fn "/scale"
+		print device >>sfn
+		next
+	}
+	sfn = fn "/sensor"
+	print device >>sfn
+}'
+
+plotcount=`ls $PLOTLIST/*/* | wc -l | tr -d ' '`
+
+plots=`(cd $PLOTLIST; ls */*)`
+apswithdata=`echo "$plots" | cut -f1 -d/ | sort -u`
+
+cat  <<!EOF >$PLOTIN
+set timefmt "%Y%m%d_%H%M"
+set xdata time
+#set format x "%a"
+set format x ""
+set lmargin at screen 0.5
+#set lmargin at screen 3
+set size 1
+#set bmargin 4
+
+set term png nocrop enhanced size 1080,1080
+set output "$outpng"
+
+set multiplot layout $plotcount,1 margins 0.05,0.95,.1,.99 spacing 0,0
+!EOF
+
+for ap in $apswithdata
+do
+
+	if [ -s "$ap/Names" ]
+	then
+		names="$ap/Names"
+	else
+		names=/dev/null
+	fi
+
+	if [ -s $PLOTLIST/$ap/scale ]
+	then
+		echo "set ylabel '$ap scales'"
+		echo -n "plot "
+		for device in `ls $ap/db | egrep -v "RX|TX"`
+		do
+			display_name=`grep "^$device	" $names | sed 's/^.*	//'`
+			if [ ! -n "$display_name" ]
+			then
+				display_name=`echo "$device" | sed 's/..:..:..:..://'`
+			fi
+	
+			echo "\"$BMDIR/$ap/db/$device\" using 1:3 title \"$display_name\" with lines lw 8, \\"
+		done
+		echo
+	fi
+
+	if [ -s $PLOTLIST/$ap/sensor ]
+	then
+		echo "set ylabel '$ap sensors'"
+		echo -n "plot "
+		for device in `ls $ap/db | egrep -v "RX|TX"`
+		do
+			display_name=`grep "^$device	" $names | sed 's/^.*	//'`
+			if [ ! -n "$display_name" ]
+			then
+				display_name=`echo "$device" | sed 's/..:..:..:..://'`
+			fi
+	
+			echo "\"$BMDIR/$ap/db/$device\" using 1:2 title \"$display_name\" with lines lw 8, \\"
+		done
+		echo
+	fi
+
+	if [ -s $PLOTLIST/$ap/IO ]
+	then
+		echo "set ylabel '$ap I/O'"
+		echo -n "plot "
+		echo "\"$BMDIR/$ap/db/RX\" using 1:2 title \"$ap RX\" with lines lw 8, \\"
+		echo "\"$BMDIR/$ap/db/TX\" using 1:2 title \"$ap TX\" with lines lw 8"
+	fi
+done >>$PLOTIN
+
+gnuplot <$PLOTIN
+
+# convert $WRKDIR/$prog.ps $outpng

@@ -1,0 +1,142 @@
+#!/bin/sh
+#
+
+if [ ! -f sum ]
+then
+	zcat data.gz		|
+	sed 's/["\\]//g'	|
+	awk -v 'FS=\t' -v 'OFS=\t' '
+		{	gsub(/[:-]/, "", $1)
+			start=match($3, /[0-9]+\.[0-9]+\.[0-9]+[^ -a-z\+]*/)
+			if (start == 0) {
+				next
+			}
+			print $1, substr($3, RSTART, RLENGTH)
+	}' |
+	sort -k1,1n -k2,2	|
+	uniq -c			|
+	awk -v 'OFS=\t'	'{print $2, $1, $3}'	|
+	sort -k1,1n -k2,2rn >sum
+fi
+
+grapdate() {
+	awk -v 'FS=\t' -v 'OFS=\t'	'
+
+	function jday(y, m, d,    days, n) { 
+		n = days[m] + d
+		if (y % 4 == 0 && m > 2) # leap year from 1901 to 2099
+	      			n++;
+		return n
+	}
+
+	BEGIN	{	split("31 28 31 30 31 30 31 31 30 31 30 31", lengths, " ")
+			sum = 0;
+			for (i = 1; i < 12+1; i++) {
+				days[i] = sum;
+				sum += lengths[i];
+			}
+			yearzero = jday(1998, 1, 1)
+		}
+
+		{	year = substr($1, 1,4) + 0
+			month = substr($1, 5,2) + 0
+			day = substr($1, 7,2) + 0
+			hour = substr($1, 9,2) + 0
+			taxis = (jday(year, month, day, days) + 365*(year - yearzero))*24 + hour
+			print taxis, $2, $3
+		}
+	'
+}
+
+cat <<!EOF | grapdate >xaxis
+199804010000	Apr 98
+199804080000	bind
+199805010000	May 98
+199806010000	Jun 98
+199807010000	Jul 98
+199808010000	Aug 98
+199809010000	Sep 98
+199810010000	Oct 98
+199811010000	Nov 98
+199812010000	Dec 98
+199901010000	Jan 99
+199902010000	Feb 99
+199903010000	Mar 99
+199904010000	Apr 99
+199905010000	May 99
+199906010000	Jun 99
+199907010000	Jul 99
+199908010000	Aug 99
+199909010000	Sep 99
+!EOF
+
+grapdate <sum |
+awk -v 'FS=\t' -v 'OFS=\t' '{	f = "ver" $3
+				print $1, $2 >>f }'
+
+grap  <<'!EOF' | pic | groff -dDEVICEWIDTHPOINTS=720 -dDEVICEHEIGHTPOINTS=2000 >dns.ps
+.G1
+frame ht 4 wid 4 bot solid left solid top invis right invis
+label left "Number of DNS Servers"  left 0.2
+label bottom "      1998                                                                    1999"
+ticks left at 0, 100, 200, 300, 400, 500, 600
+ticks bot at 17495904 "", 17496624 "", 17497368 "", 17498088 "", 17498832 "", 17499576 "", 17500296 "", 17501040 "", 17501760 "", 17502504 "", 17503248 "", 17503920 "", 17504664 "", 17505384 "", 17506128 "", 17506848 "", 17507592 ""
+ticks bot out .00001 down 0.15  at 17495904 "A", 17496624 "M", 17497368 "J", 17498088 "J", 17498832 "A", 17499576 "S", 17500296 "O", 17501040 "N", 17501760 "D", 17502504 "J", 17503248 "F", 17503920 "M", 17504664 "A", 17505384 "M", 17506128 "J", 17506848 "J", 17507592 "A"
+line dashed from 17496072,0 to 17496072,600
+copy "ver4.9.5" thru {
+	"." at $1, $2
+	lastx = $1
+	lasty = $2
+}
+"4.9.5" at lastx+(25*24), lasty-10
+copy "ver4.9.6" thru {
+	"." at $1, $2
+	lastx = $1
+	lasty = $2
+}
+"4.9.6" at lastx+(25*24), lasty-5
+copy "ver4.9.7" thru {
+	"." at $1, $2
+	lastx = $1
+	lasty = $2
+}
+"4.9.7" at lastx+(25*24), lasty-5
+copy "ver8.1.1" thru {
+	"." at $1, $2
+	lastx = $1
+	lasty = $2
+}
+"8.1.1" at lastx+(25*24), lasty-0
+copy "ver8.1.2" thru {
+	"." at $1, $2
+	lastx = $1
+	lasty = $2
+}
+"8.1.2" at lastx+(25*24), lasty-5
+copy "ver8.2.1" thru {
+	"." at $1, $2
+	lastx = $1
+	lasty = $2
+}
+"8.2.1" at lastx+(25*24), lasty-15
+.G2
+!EOF
+
+# convert dns.ps to dns.eps
+
+convert dns.ps /tmp/dns.eps
+
+if [ -s "/tmp/dns.eps.0" ]
+then
+        echo "warning, multipage text" 1>&2
+        cp /tmp/dns.eps.0 /tmp/dns.eps
+        rm -f /tmp/dns.eps.*
+fi
+
+# doctor the eps to work, we hope, with any postscript engine.
+
+grep -v '^%%Trailer'    </tmp/dns.eps	|
+sed     's/showpage //'			|
+sed 's/showpage$//' >../../art/dns.eps
+
+rm /tmp/dns.eps

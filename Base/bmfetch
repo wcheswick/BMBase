@@ -35,6 +35,8 @@ then
 	mkdir -p "$POLLDIR" 	|| exit 3
 fi
 
+# fetch hive sensor and scale data using BT advertisement data
+
 NOW=`date +%Y/%m/%d-%H:%M`
 CMD="bmscan -t $TIMEOUT"
 
@@ -43,11 +45,28 @@ CMD="bmscan -t $TIMEOUT"
 		$CMD )
 ) >/tmp/new
 
+# record network traffic, in case we care (cell access?)
+
 now=`date +%Y%m%d_%H%M`
 pktvol=`ifconfig | grep 'packets' | sort -k3,3n -k1,1 | tail -2`
+wifisignal=`iwconfig wlan0 2>/dev/null |
+		grep level |
+		cut -f2,4 |
+		sed 's/[A-Z][^=]*=//g' |
+		awk '{print $1, $2}'
+`
+
+if [ -n "$wifisignal" ]
+then
+	wifisignal="	wifi $wifisignal"
+fi
 
 (	cat /tmp/new
 	echo "$pktvol"
+	if [ -n "$wifisignal" ]
+	then
+		echo "	wifi $wifisignal"
+	fi
 ) > $POLLDIR/$now
 
 rm -f /tmp/new
