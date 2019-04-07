@@ -1,42 +1,50 @@
 #!/bin/sh
 #
 prog=bmplotall
-usage="usage: $prog [conf]"
+usage="usage: $prog pngoutput"
 #
-#	Combine all the Broodminder data into a single plot for the web.
+#	Combine all the Broodminder data into a single plot for the web. We use
+#	grap/pic/gmoff because I couldn't convince gnuplot to be reasonable.
 
 case $# in
-0);;
+1)	outpng="$1";	shift;;
 *)	echo "$usage" 1>&2
 	exit 1
 esac
+
+for p in groff pic
+do
+	if [ ! -n `which $p` ]
+	then
+		sudo pkg install $p
+	fi
+done
 
 TMPDIR=${TMPDIR:-/var/tmp}
 WRKDIR=${WRKDIR:-${TMPDIR}/${prog}}
 mkdir -p $WRKDIR        || exit 100
 rm -rf $WRKDIR/*
 
-PLOTIN=$WRKDIR/gnuplot.in
-PLOTLIST=$WRKDIR/plotlist
-
+PLOTLIST=$WRKDIR/ap
 mkdir -p $PLOTLIST
 rm -rf $PLOTLIST/*
 
-cd $HOME/BM
+BMDIR=$HOME/BM
+cd $BMDIR
 
 aps=`ls -d */db | sed 's:/.*::'`	# names of apiaries that have useful data
 for ap in $aps
 do
-	mkdir $PLOTLIST/$ap	|| exit 90
+	mkdir $WRKDIR/ap/$ap	|| exit 90
 done
 
-ls */db/* | 
+ls */db/* | tee $WRKDIR/allfiles |
 awk -v FS=/ -v OFS='	' -v pldir=$PLOTLIST '
 {	ap=$1
 	device=$3
-	fn = pldir "/" ap
+	path = pldir "/" ap
 	if (device ~ /TX|RX/) {
-		sfn = fn "/IO"
+		sfn = path "/IO"
 		print "IO" >>sfn
 		next
 	}
@@ -46,34 +54,65 @@ awk -v FS=/ -v OFS='	' -v pldir=$PLOTLIST '
 		next
 	}
 	if (octets[4] == 43) {
-		sfn = fn "/scale"
+		sfn = path "/scale"
 		print device >>sfn
 		next
 	}
-	sfn = fn "/sensor"
+	sfn = path "/sensor"
 	print device >>sfn
 }'
 
+for path in `cat $WRKDIR/allfiles`
+do
+	cat $BMDIR/$path
+done >$WRKDIR/alldata
+
+sort $WRKDIR/alldata >$WRKDIR/alldatasorted
+
+earliest=`sed 1q $WRKDIR/alldatasorted | cut -f1`
+latest=`tail -1 $WRKDIR/alldatasorted | cut -f1`
+echo from $earliest to $latest
+
+firstdate=`echo $earliest | cut -c1-8`
+lastdate=`echo $latest | cut -c1-8`
+firstsec=`date -j -f %Y%m%d%H%M%S +%s ${firstdate}000000`
+lastsec=`date -j -f %Y%m%d%H%M%S +%s ${lastdate}235959`
+echo from `date -r $firstsec` to `date -r $lastsec`
+
+totalsecs=`expr $lastsec - $firstsec + 2`	# integer round off plus leap second
+sph=`expr 60 \* 60 \* 24`
+days=`expr $totalsecs / $sph`
+hours=`expr $days \* 24`
+
+W=7
+
+# X position for given time
+
+X() {
+	sec=`date -j -f "%Y%m%d_%H%M" +%s ${1}`
+	echo `expr $sec - $totalsecs`
+}
+
+#echo $firstsec
+#X $earliest
+#X $latest
+#echo $lastsec
+
+echo $days days or $hours hours
+
 plotcount=`ls $PLOTLIST/*/* | wc -l | tr -d ' '`
-echo plot count $plotcount
 
 plots=`(cd $PLOTLIST; ls */*)`
 apswithdata=`echo "$plots" | cut -f1 -d/ | sort -u`
 
-cat  <<!EOF >$PLOTIN
-set timefmt "%Y%m%d_%H%M"
-set xdata time
-set format x "%a %H"
-set border 3
-set size 2,2
-set terminal postscript eps color 24
-set output "$WRKDIR/bm.ps"
-set multiplot layout $plotcount,1 rowsfirst
-!EOF
+W=$WRKDIR/w
+mkdir -p $W
+rm -rf $W/*
+
+O=$WRKDIR/ps
 
 for ap in $apswithdata
 do
-
 	if [ -s "$ap/Names" ]
 	then
 		names="$ap/Names"
@@ -81,10 +120,12 @@ do
 		names=/dev/null
 	fi
 
+	echo "--- $ap" >"/dev/stderr"
+
 	if [ -s $PLOTLIST/$ap/scale ]
 	then
-		echo "plot "
-		for device in `cat ls $ap/db | egrep -v "RX|TX"`
+		echo "	scale"  >"/dev/stderr"
+		for device in `cat $PLOTLIST/$ap/scale`
 		do
 			display_name=`grep "^$device	" $names | sed 's/^.*	//'`
 			if [ ! -n "$display_name" ]
@@ -92,14 +133,14 @@ do
 				display_name=`echo "$device" | sed 's/..:..:..:..://'`
 			fi
 	
-			echo "\"$DIR/db/$device\" using 1:3 title \"$display_name\" with lines lw 8, \\"
+			echo "		$BMDIR/$ap/db/$device ($display_name)">"/dev/stderr"
 		done
 	fi
 
 	if [ -s $PLOTLIST/$ap/sensor ]
 	then
-		echo "plot "
-		for device in `cat ls $ap/db | egrep -v "RX|TX"`
+		echo "	sensor"  >"/dev/stderr"
+		for device in `cat $PLOTLIST/$ap/sensor`
 		do
 			display_name=`grep "^$device	" $names | sed 's/^.*	//'`
 			if [ ! -n "$display_name" ]
@@ -107,46 +148,16 @@ do
 				display_name=`echo "$device" | sed 's/..:..:..:..://'`
 			fi
 	
-			echo "\"$DIR/db/$device\" using 1:2 title \"$display_name\" with lines lw 8, \\"
+			echo "		$BMDIR/$ap/db/$device ($display_name)">"/dev/stderr"
 		done
 	fi
 
 	if [ -s $PLOTLIST/$ap/IO ]
 	then
-		echo "plot "
-		for device in `cat ls $ap/db | egrep -v "RX|TX"`
-		do
-			display_name=`grep "^$device	" $names | sed 's/^.*	//'`
-			if [ ! -n "$display_name" ]
-			then
-				display_name=`echo "$device" | sed 's/..:..:..:..://'`
-			fi
-	
-			echo "\"$DIR/db/$device\" using 1:2 title \"$display_name\" with lines lw 8, \\"
-		done
+		echo "	IO"  >"/dev/stderr"
+		echo "		$BMDIR/$ap/db/RX">"/dev/stderr"
+		echo "		$BMDIR/$ap/db/TX">"/dev/stderr"
 	fi
+done | tee grap | pic | groff >$O.ps
 
-	for sensor in `ls $ap/db | egrep -v "RX|TX"`
-	do
-		echo "plot "
-		display_name=`grep "^$sensor	" $names | sed 's/^.*	//'`
-		if [ ! -n "$display_name" ]
-		then
-			display_name=`echo "$sensor" | sed 's/..:..:..:..://'`
-		fi
-
-		echo "\"$DIR/db/$sensor\" using 1:2 title \"$display_name\" with lines lw 8, \\"
-	done
-done
-
-exit 13
-set xlabel "Date"
-set ylabel "Temp"
-
-
-
-!EOF
-
-gnuplot <$WRKDIR/gnuplot.in
-
-convert $WRKDIR/bm.ps $outpng
+convert $O.ps $outpng
