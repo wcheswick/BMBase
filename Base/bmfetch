@@ -55,17 +55,13 @@ wifisignal=`iwconfig wlan0 2>/dev/null |
 		sed 's/[A-Z][^=]*=//g' |
 		awk '{print $1, $2}'
 `
-
-if [ -n "$wifisignal" ]
-then
-	wifisignal="	wifi $wifisignal"
-fi
+ssid=`iwconfig wlan0 | grep ESSID | awk -v FS='"' '{print $2}'`
 
 (	cat /tmp/new
 	echo "$pktvol"
 	if [ -n "$wifisignal" ]
 	then
-		echo "	wifi $wifisignal"
+		echo "	wifi $wifisignal	$ssid"
 	fi
 ) > $POLLDIR/$now
 
