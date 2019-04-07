@@ -58,9 +58,9 @@ fi
 		fn = "db/" name
 		if (type == "scale") {
 			w = $10 + $11
-			print date, temp, hum, w >fn
+			print date, batt, temp, hum, w >fn
 		} else {
-			print date, temp, hum >fn
+			print date, batt, temp, hum >fn
 		}
 		next
 	}'

@@ -56,7 +56,7 @@ set output "$WRKDIR/bm.ps"
 			display_name=`echo "$sensor" | sed 's/..:..:..:..://'`
 		fi
 
-		echo "\"$DIR/db/$sensor\" using 1:2 title \"$display_name\" with lines lw 8, \\"
+		echo "\"$DIR/db/$sensor\" using 1:3 title \"$display_name\" with lines lw 8, \\"
 	done
 ) >>$WRKDIR/gnuplot.in
 
