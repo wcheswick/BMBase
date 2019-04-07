@@ -7,7 +7,7 @@ all::
 install::	${BIN}/bmscan ${BIN}/rpi_power \
 	${BIN}/bmfetch ${BIN}/bmpoll ${BIN}/bmpush
 
-${BIN}/bmscan:
+${BIN}/bmscan::
 	(cd src; make install)
 
 ${BIN}/rpi_power:	rpi_power
