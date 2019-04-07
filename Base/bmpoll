@@ -6,10 +6,10 @@ usage="$prog"
 
 export	POLLDIR=/tmp/bmpolldata
 
-rpi_power up
+#rpi_power up
 
 bmfetch
 bmpush	farm
 
-rpi_power down
+#rpi_power down
 
