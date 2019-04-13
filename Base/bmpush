@@ -30,7 +30,6 @@ fi
 
 ssh $targethost "mkdir -p $TARGETRAW 2>/dev/null"
 
-date >>.updated
 (cd "$POLLDIR"; rsync -a . $targethost:$TARGETRAW)
 
 ssh $targethost "bmupdate $ME"
