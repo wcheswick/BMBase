@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+prog=bmcheckforupdate
+usage="$prog ap"
+#
+#	Make sure we have received an update for apiary ap in the
+#	last hour.  If not, fail, so we can get email.  Only fail
+#	once per outage.
+
+
+case $# in
+1)	ap="$1";	shift;;
+*)	echo "usage: $usage" 1>&2
+	exit 1
+esac
+
+DIR=$HOME/BM/$ap
+UPDATE_TRACKER="$DIR/.updatechecked"
+FAILURE_NOTIFIED="$DIR/.lastnotified"
+
+if [ ! -d $DIR/raw ]
+then
+	echo "$prog: `hostname -s`: dir '$DIR/raw' missing, aborted" 1>&2
+	exit 2
+fi
+
+if [ ! -f $UPDATE_TRACKER ]
+then
+	touch $UPDATE_TRACKER
+	rm -f $FAILURE_NOTIFIED
+	exit 0		# first time, no foul
+fi
+
+newest_file=`ls raw | tail -1`
+if [ $newest_file -nt $UPDATE_TRACKER ]
+then	# all is well
+	touch $UPDATE_TRACKER
+	rm -f $FAILURE_NOTIFIED
+	exit 0
+fi
+
+if [ -f $FAILURE_NOTIFIED ]
+then
+	touch $UPDATE_TRACKER
+	exit 0	# we have already complained
+fi
+
+echo "$prog: '$ap': update missing"
+exit 10
