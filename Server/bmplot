@@ -1,15 +1,22 @@
 #!/bin/sh
 #
-prog=bmplotall
-usage="usage: $prog pngoutput"
+prog=bmplot
+usage="usage: $prog [-x] epsfile"
 #
-#	Combine all the Broodminder data into a single plot for the web.
+#	Make one plot with ....
 
-case $# in
-1)	outpng="$1";	shift;;
-*)	echo "$usage" 1>&2
-	exit 1
-esac
+xlabel=false
+while [ $# -gt 0 ]
+do
+	case "$1" in
+	-x)	xlabel=true;;
+	-*)
+		echo "$usage" 1>&2
+		exit 1;;
+	*)
+		break;
+	esac
+done
 
 TMPDIR=${TMPDIR:-/var/tmp}
 WRKDIR=${WRKDIR:-${TMPDIR}/${prog}}
@@ -59,8 +66,6 @@ plotcount=`ls $PLOTLIST/*/* | wc -l | tr -d ' '`
 
 plots=`(cd $PLOTLIST; ls */*)`
 apswithdata=`echo "$plots" | cut -f1 -d/ | sort -u`
-
-
 
 cat  <<!EOF >$PLOTIN
 set timefmt "%Y%m%d_%H%M"
