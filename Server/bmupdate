@@ -40,7 +40,7 @@ fi
 	}  
 	
 	/^2.*/ {
-		date=$1
+		date=$1		# note: the date shifts our raw fields on to the right
 		name = toupper($2)
 		type = $3
 		if (type != "scale" && type != "sensor") {
@@ -51,13 +51,20 @@ fi
 		batt = $5
 		temp = $6
 		hum = $7
+		data = $8
+		wl = $10
+		wr = $11
 		# (there is more: weight, and data in the device)
 		sub(/%/, "", batt)
 		sub(/F/, "", temp)
 		sub(/%/, "", hum)
 		fn = "db/" name
 		if (type == "scale") {
-			w = $10 + $11
+			if (NF < 10) {
+				print "scale lacks weights: $0" >"/dev/stderr"
+				next
+			}
+			w = wl + wr
 			print date, batt, temp, hum, w >fn
 		} else {
 			print date, batt, temp, hum >fn
@@ -85,9 +92,24 @@ fi
 				print last, pkts, bytes
 		}' && mv $i.new $i || exit 99
 	done
+
+	# find earliest and latest date, so all our plots will be aligned
+
+	cat db/* |
+	awk -v FS='	' '
+	BEGIN {	first = "" }
+	
+	first == "" {	first = last = $1; next }
+	$1 < first {	first = $1 }
+	$1 > last {	last = $1 }
+
+	END {	print "\"" first "\":\"" last "\""}
+	' >xrange
 )
 
-bmplotg $host /tmp/$host.png
+#bmplotg $host /tmp/$host.png
+
+bmplotap $host /tmp/$host.png
 
 if [ -d /web/hives ]
 then
