@@ -1,0 +1,99 @@
+#!/bin/sh
+#
+prog=bmplotap
+usage="usage: $prog ap pngout"
+#
+#	Plot all the information available for a given apiary, and
+#	create a png file suitable for the web.
+
+case $# in
+2)	ap="$1";	shift
+	pngout="$1";	shift;;
+*)	echo "$usage" 1>&2
+	exit 1
+esac
+
+TMPDIR=${TMPDIR:-/var/tmp}
+WRKDIR=${WRKDIR:-${TMPDIR}/${prog}.${ap}}
+mkdir -p $WRKDIR        || exit 100
+rm -rf $WRKDIR/*
+
+BMDIR=$HOME/BM
+
+if [ -s "$BMDIR/$ap/Names" ]
+then
+	names="$BMDIR/$ap/Names"
+else
+	names=/dev/null
+fi
+
+if [ -s $BMDIR/$ap/xrange ]
+then
+	export	XRANGE=`cat $BMDIR/$ap/xrange`
+fi
+
+(cd $WRKDIR
+	
+	(cd $BMDIR/$ap/db; ls) |
+	awk -v FS=/ -v OFS='	' '
+	{	device=$1
+		if (device ~ /TX|RX/) {
+			print "IO" >>"IO"
+			next
+		}
+		n = split(device, octets, ":")
+		if (n != 6) {
+			print "confused by '" $0 "', skipping" >"/dev/stderr"
+			next
+		}
+		if (octets[4] == 43) {
+			print device >>"scale"
+			next
+		}
+		print device >>"sensor"
+	}'
+	
+	for i in scale sensor IO
+	do
+		if [ ! -s $i ]
+		then
+			continue
+		fi
+	
+		for f in `cat $i`
+		do
+			display_name=`grep "^$f	" $names | sed 's/^.*	//'`
+			if [ ! -n "$display_name" ]
+			then
+				#display_name=`echo "$f" | sed 's/..:..:..:..://'`
+				display_name=`echo "$f" | sed 's/..:..:..://'`
+			fi
+	
+			case $i in
+			scale)
+				echo "${display_name}	$BMDIR/$ap/db/$f	1:5"	
+				;;
+			sensor)
+				echo "${display_name}-t	$BMDIR/$ap/db/$f	1:3"	
+	#			echo "${display_name}-h	$BMDIR/$ap/db/$f	1:4"	
+	#			echo "${display_name}-b	$BMDIR/$ap/db/$f	1:2"	
+				;;
+			IO)
+				;;
+			esac
+		done | tee $i.in |
+		case $i in
+		scale)
+			bmplot "$ap" "Weight" $i.eps
+			;;
+		sensor)
+			bmplot "$ap" "Temp" $i.eps
+			;;
+		IO)
+			cat >/dev/null
+			;;
+		esac
+	done
+)
+
+montage -tile 1 -geometry 768 $WRKDIR/*.eps $pngout
