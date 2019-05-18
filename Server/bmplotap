@@ -27,13 +27,15 @@ else
 	names=/dev/null
 fi
 
-if [ -s $BMDIR/$ap/xrange ]
+if [ -s $BMDIR/.xrange ]
+then
+	export	XRANGE=`cat $BMDIR/.xrange`
+elif [ -s $BMDIR/$ap/xrange ]
 then
 	export	XRANGE=`cat $BMDIR/$ap/xrange`
 fi
 
 (cd $WRKDIR
-	
 	(cd $BMDIR/$ap/db; ls) |
 	awk -v FS=/ -v OFS='	' '
 	{	device=$1

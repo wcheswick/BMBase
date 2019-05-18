@@ -13,7 +13,8 @@ case $# in
 	exit 1
 esac
 
-DIR=$HOME/BM/$host
+BMDIR=$HOME/BM
+DIR=$BMDIR/$host
 
 if [ ! -d $DIR/raw ]
 then
@@ -27,14 +28,25 @@ fi
 	# why /dev/null?  so grep will include the file names, even if only one file	
 	grep . /dev/null raw/2*	|	# all the readings files, with their paths
 	sed 's;^.*/;;'	|	# remove leading path elements
-	sed 's/:/ /'	|	# remove colon after the file name, which is also the time stamp
+	sed 's/:/ /'	|	# no colon after the file name, which is time stamp
 	awk -v OFS='	' '
+	{	newstamp = $1
+		n = split(newstamp, fields, "_")
+		newdate = fields[1]
+		newtime = fields[2]
+		n = split(date, fields, "_")
+		olddate = fields[1]
+		oldtime = fields[2]
+		datamissing = (date != "") && (newdate - olddate > 1)
+	}
 	$2 ~ /RX|TX/	{
 		date = $1
 		type = $2
 		pkts = $4
 		bytes = $6
 		fn = "db/" type
+		if (datamissing)
+			print "" >fn
 		print	date, pkts, bytes >fn
 		next
 	}  
@@ -59,6 +71,8 @@ fi
 		sub(/F/, "", temp)
 		sub(/%/, "", hum)
 		fn = "db/" name
+		if (datamissing)
+			print "" >fn
 		if (type == "scale") {
 			if (NF < 10) {
 				print "scale lacks weights: $0" >"/dev/stderr"
@@ -73,13 +87,30 @@ fi
 	}'
 
 	# we may have multiple lines for TX and RX entries for each reading.
-	# go through and pick the largest one
+	# go through and pick the largest one.  Actually, we only write the
+	# number of packets and bytes since the previous entry.
+
 	for i in db/RX db/TX
 	do
-		awk <$i >$i.new -v OFS='	' '
-		BEGIN {	pkts = bytes = 0 }
-		$1 != last && (last != "") {
-			print last, pkts, bytes
+		awk <$i -v OFS='	' '
+
+		function flush() {
+			if (last == "")
+				return;
+			nbytes = bytes-lastbytes
+			if (lastbytes && nbytes > 0 && pkts >= lastpckts) {
+				logbytes = log(nbytes)/log(10)
+				print last, pkts-lastpckts, nbytes
+			}
+			lastpckts = pkts
+			lastbytes = bytes
+		}
+
+		BEGIN {	pkts = bytes = 0
+			lastpckts = lastbytes = 0
+		}
+		$1 != last {
+			flush()
 			pkts = bytes = 0
 		}
 		{	last = $1
@@ -88,9 +119,9 @@ fi
 			if ($3 > bytes)
 				bytes = $3
 		}
-		END {	if (last != "")
-				print last, pkts, bytes
-		}' && mv $i.new $i || exit 99
+		END {
+			flush()
+		}' >$i.new && mv $i.new $i || exit 99
 	done
 
 	# find earliest and latest date, so all our plots will be aligned
@@ -108,6 +139,12 @@ fi
 )
 
 #bmplotg $host /tmp/$host.png
+
+(cd $BMDIR;
+	tstart=`cat */xrange | cut -f1 -d: | sort | sed 1q`
+	tend=`cat */xrange | cut -f2 -d: | sort | tail -1`
+	echo "$tstart:$tend" >.xrange
+)
 
 bmplotap $host /tmp/$host.png
 

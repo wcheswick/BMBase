@@ -13,6 +13,8 @@ usage="usage: $prog [-x] name ylabel epsfile"
 #	if environment variable XRANGE is set, use it to make the
 #	time axis consistent.
 
+LW=3
+
 xlabel=false
 while [ $# -gt 0 ]
 do
@@ -46,7 +48,7 @@ PLOTCMDS=$WRKDIR/gnuplot.plots
 
 (	while IFS="	" read label fn field
 	do
-		echo "\"$fn\" using $field title \"$label\" with lines lw 2, \\"
+		echo "\"$fn\" using $field title \"$label\" with lines lw $LW, \\"
 	done
 ) >>$PLOTCMDS
 
