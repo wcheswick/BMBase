@@ -76,14 +76,14 @@ fi
 				echo "${display_name}	$BMDIR/$ap/db/$f	1:5"	
 				;;
 			sensor)
-				echo "${display_name}-t	$BMDIR/$ap/db/$f	1:3"	
-	#			echo "${display_name}-h	$BMDIR/$ap/db/$f	1:4"	
-	#			echo "${display_name}-b	$BMDIR/$ap/db/$f	1:2"	
+				echo "${display_name}-t	$BMDIR/$ap/db/$f	1:(\$3)"	
+	#			echo "${display_name}-h	$BMDIR/$ap/db/$f	1:(\$4)"	
+	#			echo "${display_name}-b	$BMDIR/$ap/db/$f	1:(\$2)"	
 				;;
 			IO)
 				;;
 			esac
-		done | tee $i.in |
+		done | tee $i.in | tee /tmp/$i.in |
 		case $i in
 		scale)
 			bmplot "$ap" "Weight" $i.eps

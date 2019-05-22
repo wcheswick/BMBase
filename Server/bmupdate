@@ -30,6 +30,8 @@ fi
 	sed 's;^.*/;;'	|	# remove leading path elements
 	sed 's/:/ /'	|	# no colon after the file name, which is time stamp
 	awk -v OFS='	' '
+	BEGIN {	missingstring = "GAP" }
+
 	{	newstamp = $1
 		n = split(newstamp, fields, "_")
 		newdate = fields[1]
@@ -37,7 +39,7 @@ fi
 		n = split(date, fields, "_")
 		olddate = fields[1]
 		oldtime = fields[2]
-		datamissing = (date != "") && (newdate - olddate > 1)
+		datamissing = (date != "") && (newdate != olddate)
 	}
 	$2 ~ /RX|TX/	{
 		date = $1
@@ -45,8 +47,8 @@ fi
 		pkts = $4
 		bytes = $6
 		fn = "db/" type
-		if (datamissing)
-			print "" >fn
+		if (0 && datamissing)
+			print missingstring >fn
 		print	date, pkts, bytes >fn
 		next
 	}  
@@ -71,8 +73,8 @@ fi
 		sub(/F/, "", temp)
 		sub(/%/, "", hum)
 		fn = "db/" name
-		if (datamissing)
-			print "" >fn
+		if (0 && datamissing)
+			print missingstring >fn
 		if (type == "scale") {
 			if (NF < 10) {
 				print "scale lacks weights: $0" >"/dev/stderr"
@@ -126,7 +128,11 @@ fi
 
 	# find earliest and latest date, so all our plots will be aligned
 
-	cat db/* |
+	files=`echo db/* | egrep ':|X'`
+	echo "$files" >/tmp/$host.files
+
+	cat $files |
+	grep -v GAP |
 	awk -v FS='	' '
 	BEGIN {	first = "" }
 	

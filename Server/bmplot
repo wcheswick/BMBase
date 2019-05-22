@@ -62,6 +62,8 @@ set timefmt "%Y%m%d_%H%M"
 set xdata time
 #set format x ""
 #set lmargin at screen 0.5
+#set datafile missing "GAP"
+#show datafile missing
 set size 2
 set ylabel "$ylabel"
 `	if "$xlabel"
