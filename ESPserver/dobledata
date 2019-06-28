@@ -82,6 +82,14 @@ BEGIN { while ((getline <devsfn) > 0) {
 	datestamp = ""
 }
 
+function v(p) {	# convert byte string to integer
+	x = 0
+	s = substr(md, p*2+1, n*2)
+	for (j=0; j<2; j++)
+		x = x * 16 + index("0123456789ABCDEF", substr(s, j+1, 1)) - 1
+	return x
+}
+
 # {	print }	# debug, show what we are processing
 
 /^$/ {		# end of report
@@ -128,16 +136,39 @@ BEGIN { while ((getline <devsfn) > 0) {
 	dev = toupper($1)
 	rt = $2		# response time, in ms
 	name = $3
-	mandata = $4
+	md = toupper($4)
 	txpower = $5
 	rssi = $6
-	print datestamp, dev_apiary[dev], dev, rssi, dev_name[dev]
+	if (substr(md, 1, 4) != "8D02") {
+		print "bad manufacturer: " md
+		next
+	}
+	model = v(2)
+	scale = (model == 43)
+	minordev = v(3)
+	majdev = v(4)
+	battery = v(6)
+	rt = v(10) * 256 + v(9)
+	F = ((rt*1.0) / 65536*165.0 - 40.0)*(9.0/5.0) + 32.0
+	F = int(10.0*F)/10.0	# round to a tenth
+	humidity = v(16)
+
+	if (scale) {
+		wl = (v(13) * 256.0 + v(12) - 32767.0)/100.0
+		wr = (v(15) * 256.0 + v(14) - 32767.0)/100.0
+		data =  model "  " battery "%  " F "F "  humidity "% " wl + wr
+	} else
+		data =  model "  " battery "%  " F "F "  humidity "%"
+
+	print datestamp, dev_apiary[dev], dev, rssi, dev_name[dev], data
 }
 
 /^..:..:..:..:..:../ {	# some other device we do not care about
 	next
 }
 
-{	print "unexpected line"
+{	print "unexpected line: " $0
 }
 '
+
+exit 0

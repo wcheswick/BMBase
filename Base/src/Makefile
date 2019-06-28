@@ -1,4 +1,4 @@
-BIN=/usr/local/bin
+ bmscanBIN=/usr/local/bin
 LIB=${HOME}/lib
 
 OBJ=bmscan.o dump.o broodminder.o
@@ -29,4 +29,4 @@ ${BIN}/bmscan:	bmscan
 	sudo chmod 4555 ${BIN}/bmscan
 
 clean::
-	rm -f *.o *core*
+	rm -f *.o *core* bmscan
