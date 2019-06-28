@@ -1,0 +1,143 @@
+#!/bin/sh
+#
+prog=dobledata
+usage="usage: $prog"
+#
+#	Update local copy of btle checkins, and extract data
+
+SRC_HOST=data.cheswick.com
+SRC_DIR=/var/log
+
+BMDIR=$HOME/BM
+BLEDIR=$HOME/BLE
+
+TMPDIR=${TMPDIR:-/var/tmp}
+WRKDIR=${WRKDIR:-${TMPDIR}/${prog}}
+mkdir -p $WRKDIR        || exit 100
+rm -rf $WRKDIR/*
+
+
+if [ ! -d $BLEDIR ]
+then
+	mkdir -p $BLEDIR
+fi
+
+log_mod_date=`ssh $SRC_HOST "stat -f '%m' $SRC_DIR/blerpt"`
+
+date_str=`date -r $log_mod_date +%Y%m%d_%H%M%S`
+
+echo "$prog:	report as of $date_str" 1>&2
+
+if [ ! -f $BLEDIR/${date_str} ]
+then
+	echo "$prog: updating local copy..." 1>&2
+	scp -q $SRC_HOST:$SRC_DIR/blerpt $BLEDIR/${date_str} || {
+		echo "$prog:	report fetch failed, aborting" 1>&2
+		exit 10
+	}
+fi
+
+# scan the reports
+
+RPT=$BLEDIR/`ls -t $BLEDIR | tail -1`
+
+(cd $BMDIR
+	for apiary in *
+	do	# fetch device names
+		if [ -f $apiary/Names ]
+		then
+			grep -v '^[ 	]*$' $apiary/Names |
+			awk -v FS='	' -v OFS='	' -v apiary="$apiary" '
+			{	dev = $1
+				devname = $2
+				print $1, apiary, $2
+			}'
+		fi
+	done
+) >$WRKDIR/alldevs
+
+awk '{print $1}' $WRKDIR/alldevs |
+	sort |
+	uniq -d >$WRKDIR/moved
+
+if [ -s $WRKDIR/moved ]
+then
+	echo "$prog: devices moved: "
+	cat WRKDIR/moved
+fi 1>&2
+
+#cat $WRKDIR/alldevs | grep 06:09:16:42
+
+cat $BLEDIR/${date_str} |
+tr -d '\r' |
+awk -v FS='	' -v OFS='	' -v devsfn=$WRKDIR/alldevs '  
+BEGIN { while ((getline <devsfn) > 0) {
+		device = toupper($1)
+		ap = $2
+		name = $3
+		apiary_count[ap] ++
+		dev_name[device] = $3
+		dev_apiary[device] = ap
+        }
+	datestamp = ""
+}
+
+# {	print }	# debug, show what we are processing
+
+/^$/ {		# end of report
+#	print "end of report"
+	next
+}
+
+/^Report/ {	# beginning of report
+	probing_MAC = $2
+	count_found = $3
+	sub(/ .*$/, "", count_found)
+	SSID = $4
+	RSSI = $5
+	print "Report " wifiip, probing_MAC, SSID " @ " RSSI, count_found
+	next
+}
+
+/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)/ {	# new connection
+	humandate = $1
+	n = split(humandate, f, " ")
+	if (n != 6) {
+		print "bad date stamp: " datestamp >"/dev/stderr"
+		next
+	}
+	year = f[6]
+	si = index("JanFebMarAprMayJunJulAugSepOctNovDec", f[2])
+	if (si == 0) {
+		print "bad month: " f[2]
+		next
+	}
+	mi = "0" ((si - 1) / length("Jan")) + 1
+	mon = substr(mi, length(mi)-1, 2)
+	d = "0" f[3]
+	day = substr(d, length(d)-1, 2)
+	hms = f[4]
+	gsub(/:/, "", hms)
+	datestamp = year mon day "_" hms
+
+	wifiip = $2
+	next
+}
+
+/^06:09:16:4[1-4]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]/ {
+	dev = toupper($1)
+	rt = $2		# response time, in ms
+	name = $3
+	mandata = $4
+	txpower = $5
+	rssi = $6
+	print datestamp, dev_apiary[dev], dev, rssi, dev_name[dev]
+}
+
+/^..:..:..:..:..:../ {	# some other device we do not care about
+	next
+}
+
+{	print "unexpected line"
+}
+'

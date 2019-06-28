@@ -20,8 +20,8 @@ FAILURE_NOTIFIED="$DIR/.lastnotified"
 
 if [ ! -d $DIR/raw ]
 then
-	echo "$prog: `hostname -s`: dir '$DIR/raw' missing, aborted" 1>&2
-	exit 2
+	# not set up yet, no error to report
+	exit 0
 fi
 
 if [ ! -f $UPDATE_TRACKER ]

@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+prog=bmrpt
+usage="usage: $prog"
+#
+#	Network service that receives the Broodminder data from the ESP32.
+
+LOG=/var/log/$prog
+
+if [ ! -f $LOG ]
+then
+	sudo cp /dev/null $LOG
+	sudo chown ches $LOG
+fi
+
+exec 2>&1 >>$LOG
+
+rmt=`perl -le 'use Socket; ($port,$addr) = sockaddr_in(getpeername(STDIN)); print inet_ntoa($addr);'`
+
+echo "`date`	$rmt"
+cat -

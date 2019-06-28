@@ -14,6 +14,7 @@ usage="usage: $prog [-x] name ylabel epsfile"
 #	time axis consistent.
 
 LW=3
+STYLE=${STYLE:-"lines lw $LW"}
 
 xlabel=false
 while [ $# -gt 0 ]
@@ -48,7 +49,7 @@ PLOTCMDS=$WRKDIR/gnuplot.plots
 
 (	while IFS="	" read label fn field
 	do
-		echo "\"$fn\" using $field title \"$label\" with lines lw $LW, \\"
+		echo "\"$fn\" using $field title \"$label\" with $STYLE, \\"
 	done
 ) >>$PLOTCMDS
 
