@@ -1,43 +1,20 @@
 #!/bin/sh
 #
-prog=dobledata
+prog=bmbleupdate
 usage="usage: $prog"
 #
-#	Update local copy of btle checkins, and extract data
+#	Process our local logs into device data files
 
-SRC_HOST=data.cheswick.com
-SRC_DIR=/var/log
+BLEDIR=$HOME/BLE
+BLELOGS=$BLEDIR/logs
 
 BMDIR=$HOME/BM
-BLEDIR=$HOME/BLE
 
 TMPDIR=${TMPDIR:-/var/tmp}
 WRKDIR=${WRKDIR:-${TMPDIR}/${prog}}
 mkdir -p $WRKDIR        || exit 100
 rm -rf $WRKDIR/*
 
-
-if [ ! -d $BLEDIR ]
-then
-	mkdir -p $BLEDIR
-fi
-
-log_mod_date=`ssh $SRC_HOST "stat -f '%m' $SRC_DIR/blerpt"`
-
-date_str=`date -r $log_mod_date +%Y%m%d_%H%M%S`
-
-echo "$prog:	report as of $date_str" 1>&2
-
-if [ ! -f $BLEDIR/${date_str} ]
-then
-	echo "$prog: updating local copy..." 1>&2
-	scp -q $SRC_HOST:$SRC_DIR/blerpt $BLEDIR/${date_str} || {
-		echo "$prog:	report fetch failed, aborting" 1>&2
-		exit 10
-	}
-fi
-
-# scan the reports
 
 RPT=$BLEDIR/`ls -t $BLEDIR | tail -1`
 
@@ -63,12 +40,12 @@ awk '{print $1}' $WRKDIR/alldevs |
 if [ -s $WRKDIR/moved ]
 then
 	echo "$prog: devices moved: "
-	cat WRKDIR/moved
+	cat $WRKDIR/moved
 fi 1>&2
 
 #cat $WRKDIR/alldevs | grep 06:09:16:42
 
-cat $BLEDIR/${date_str} |
+cat $BLELOGS/* |
 tr -d '\r' |
 awk -v FS='	' -v OFS='	' -v devsfn=$WRKDIR/alldevs '  
 BEGIN { while ((getline <devsfn) > 0) {
@@ -128,14 +105,25 @@ function v(p) {	# convert byte string to integer
 	gsub(/:/, "", hms)
 	datestamp = year mon day "_" hms
 
-	wifiip = $2
+	if (NF > 2) {
+		UTCsecs = $2
+		wifiip = $3
+	} else {
+		UTCsecs = 0
+		wifiip = $2
+	}
 	next
 }
 
 /^06:09:16:4[1-4]:[0-9a-fA-F][0-9a-fA-F]:[0-9a-fA-F][0-9a-fA-F]/ {
 	dev = toupper($1)
+	if (dev in dev_name)
+		name = dev_name[dev]
+	else
+		name = dev
+
 	rt = $2		# response time, in ms
-	name = $3
+	reported_name = $3
 	md = toupper($4)
 	txpower = $5
 	rssi = $6
@@ -156,11 +144,13 @@ function v(p) {	# convert byte string to integer
 	if (scale) {
 		wl = (v(13) * 256.0 + v(12) - 32767.0)/100.0
 		wr = (v(15) * 256.0 + v(14) - 32767.0)/100.0
-		data =  model "  " battery "%  " F "F "  humidity "% " wl + wr
-	} else
-		data =  model "  " battery "%  " F "F "  humidity "%"
+		w = int(2.0*(wl + wr)*10.0) / 10.0
+		data = battery "% " F "F "  humidity "% " w "#"
+	} else {
+		data = battery "% " F "F "  humidity "%"
+	}
 
-	print datestamp, dev_apiary[dev], dev, rssi, dev_name[dev], data
+	print datestamp, UTCsecs, dev_apiary[dev], dev, name, rssi, model, F, humidity, data
 }
 
 /^..:..:..:..:..:../ {	# some other device we do not care about
@@ -169,6 +159,80 @@ function v(p) {	# convert byte string to integer
 
 {	print "unexpected line: " $0
 }
-'
+' > $WRKDIR/results 
+
+APIARIES="lnfhives" # labhives danhives wshives
+
+for ap in $APIARIES
+do
+	mkdir -p $BMDIR/$ap/espdb 2>/dev/null
+
+	(cd $BMDIR/$ap/espdb
+		grep "	$ap	" $WRKDIR/results |
+		grep -v Report |
+		awk -v FS='	' -v OFS='	' '
+		$7 == 43 {	# scales only
+			date = $1
+			UTCdate = $2
+			apiary = $3
+			devMAC = $4
+			name = $5
+			rssi = $6
+			model = $7
+			temp = $8
+			hum = $9
+			data = $10
+			n = split(data, f, " ")
+			batt = f[1]
+			w = f[4]
+			sub(/#$/, "", w)
+			fn=devMAC
+			print date, batt, temp, hum, w >fn
+		}'
+	)
+done
 
 exit 0
+
+for i in $APIARIES
+do
+	echo
+	echo "$prog: $i signal averages:"
+
+	grep "$i" $WRKDIR/results |
+	grep -v Report |
+	awk -v FS='	' -v OFS='	' '
+	{	name = $5
+		rssi = $6
+		count[name]++
+		sum[name] += rssi
+	}
+	END {	for (name in count) {
+			print name, count[name], sum[name]/count[name]
+		}
+	}' | sort -k3,3rn
+done
+
+for i in $APIARIES
+do
+	echo
+	echo "$prog: $i hive weights:"
+
+	grep "$i" $WRKDIR/results |
+	grep -v Report |
+	awk -v FS='	' -v OFS='	' '
+	$7 == 43 {	# scales only
+		date = $1
+		UTCdate = $2
+		apiary = $3
+		devMAC = $4
+		name = $5
+		rssi = $6
+		model = $7
+		data = $8
+		n = split(data, f, " ")
+		w = f[4]
+		sub(/#$/, "", w)
+		print date, name, devMAC, w
+	}' | sort -k2,2 -k1,1n
+done

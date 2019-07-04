@@ -1,11 +1,12 @@
 #!/bin/sh
 #
-prog=bmrpt
+prog=bmespsrv
 usage="usage: $prog"
 #
-#	Network service that receives the Broodminder data from the ESP32.
+#	Network service that receives the Broodminder data from the ESP32. Actually,
+#	this will record the harvest of any BLE advertisement.
 
-LOG=/var/log/$prog
+LOG=/var/log/bledata
 
 if [ ! -f $LOG ]
 then
@@ -17,5 +18,5 @@ exec 2>&1 >>$LOG
 
 rmt=`perl -le 'use Socket; ($port,$addr) = sockaddr_in(getpeername(STDIN)); print inet_ntoa($addr);'`
 
-echo "`date`	$rmt"
+echo "`date`	`date +%s`	$rmt"
 cat -

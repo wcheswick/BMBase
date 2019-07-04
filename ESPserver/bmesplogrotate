@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+prog=bmesplogrotate
+usage="usage: $prog"
+#
+#	Carefully rotate in incoming BLE data log, and write the path of
+#	the old data file to stdout.
+
+LOG=/var/log/bledata
+
+if [ ! -f $LOG ]
+then		# no log present.  Create it.
+	sudo cp /dev/null $LOG
+	sudo chown ches $LOG
+	exit
+fi
+
+if [ ! -s $LOG ]
+then	# log is empty, nothing to do
+	exit
+fi
+
+rolledlog="${LOG}_`date +%Y%m%d_%H%M%S`"
+if sudo mv $LOG $rolledlog 2>>/tmp/$prog.err
+then
+	sudo cp /dev/null $LOG	# create new log
+	sudo chown ches $LOG
+	echo "$rolledlog"
+else
+	exit 1
+fi
+

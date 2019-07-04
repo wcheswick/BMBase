@@ -80,7 +80,7 @@ fi
 				print "scale lacks weights: $0" >"/dev/stderr"
 				next
 			}
-			w = wl + wr
+			w = 2.0*(wl + wr)	# scale factor
 			print date, batt, temp, hum, w >fn
 		} else {
 			print date, batt, temp, hum >fn

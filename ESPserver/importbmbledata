@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+prog=importbmbledata
+usage="usage: $prog"
+#
+#	Move the server's raw BLE log data to local machine.
+#	stdout is non-null, and rc==0 if there is something to do.
+
+case $# in
+0)	;;
+*)	echo "$usage" 1>&2
+	exit 1
+esac
+
+SRC_HOST=data.cheswick.com
+
+BLEDIR=$HOME/BLE
+
+TMPDIR=${TMPDIR:-/var/tmp}
+WRKDIR=${WRKDIR:-${TMPDIR}/${prog}}
+mkdir -p $WRKDIR        || exit 100
+rm -rf $WRKDIR/*
+
+
+if [ ! -d $BLEDIR/logs ]
+then
+	mkdir -p $BLEDIR/logs
+fi
+
+newfile=`ssh $SRC_HOST bmesplogrotate`	# we don't use the name ....
+
+# catchall: get all old logs, including the latest, if any
+
+rsync -a $SRC_HOST:/var/log/bledata_* $BLEDIR/logs 2>/dev/null || {
+	# nothing new to do
+	exit 1
+}
+
+# slight race condition here: what if the logs rotate exactly between these two
+# statements?
+
+ssh $SRC_HOST "sudo mv /var/log/bledata_* /var/log/SAFE 2>/dev/null"
+
+if [ -n "$newfile" ]
+then	# fetch new file
+	scp $SRC_HOST:$newfile $BLEDIR/logs
+	ssh $SRC_HOST "sudo rm -f $newfile"
+	echo "$newfile"
+	exit 0
+fi
+
+exit 2
