@@ -1,7 +1,10 @@
 DATASRVHOST=data
 BIN=${HOME}/bin
 
-installlocal::	${BIN}/importbmbledata
+installlocal::	${BIN}/importbmbledata ${BIN}/bmbleupdate
+
+${BIN}/bmbleupdate:	bmbleupdate
+	cp bmbleupdate ${BIN}/bmbleupdate
 
 ${BIN}/importbmbledata:	importbmbledata
 	cp importbmbledata ${BIN}/importbmbledata
