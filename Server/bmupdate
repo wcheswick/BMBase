@@ -144,18 +144,4 @@ fi
 	' >xrange
 )
 
-#bmplotg $host /tmp/$host.png
-
-(cd $BMDIR;
-	tstart=`cat */xrange | cut -f1 -d: | sort | sed 1q`
-	tend=`cat */xrange | cut -f2 -d: | sort | tail -1`
-	echo "$tstart:$tend" >.xrange
-)
-
-bmplotap $host /tmp/$host.png
-
-if [ -d /web/hives ]
-then
-	cp /tmp/$host.png /web/hives/$host.png &&
-		rm /tmp/$host.png
-fi
+bmreportall 2>&1 >>/tmp/bmreportall

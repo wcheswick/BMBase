@@ -1,0 +1,21 @@
+!/bin/sh
+#
+prog=bmreportall
+usage="$prog"
+#
+#	Generate graphs and stuff for allBM sites
+
+
+case $# in
+0)	;;
+*)	echo "usage: $usage" 1>&2
+	exit 1
+esac
+
+BMDIR=$HOME/BM
+
+cd $BMDIR
+for i in *
+do
+	bmreport $i
+done

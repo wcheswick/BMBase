@@ -1,0 +1,32 @@
+!/bin/sh
+#
+prog=bmreport
+usage="$prog site"
+#
+#	Generate graphs and stuff for all our BM data for a site.
+
+
+case $# in
+1)	site="$1";	shift;;
+*)	echo "usage: $usage" 1>&2
+	exit 1
+esac
+
+BMDIR=$HOME/BM
+DIR=$BMDIR/$site
+
+#bmplotg $host /tmp/$host.png
+
+(cd $BMDIR;
+	tstart=`cat */xrange | cut -f1 -d: | sort | sed 1q`
+	tend=`cat */xrange | cut -f2 -d: | sort | tail -1`
+	echo "$tstart:$tend" >.xrange
+)
+
+bmplotap $site /tmp/$site.png
+
+if [ -d /web/hives ]
+then
+	cp /tmp/$site.png /web/hives/$site.png &&
+		rm /tmp/$site.png
+fi

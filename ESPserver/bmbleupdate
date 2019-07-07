@@ -37,12 +37,6 @@ awk '{print $1}' $WRKDIR/alldevs |
 	sort |
 	uniq -d >$WRKDIR/moved
 
-if [ -s $WRKDIR/moved ]
-then
-	echo "$prog: devices moved: "
-	cat $WRKDIR/moved
-fi 1>&2
-
 #cat $WRKDIR/alldevs | grep 06:09:16:42
 
 cat $BLELOGS/* |

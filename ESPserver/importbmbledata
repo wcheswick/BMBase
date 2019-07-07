@@ -43,9 +43,10 @@ ssh $SRC_HOST "sudo mv /var/log/bledata_* /var/log/SAFE 2>/dev/null"
 
 if [ -n "$newfile" ]
 then	# fetch new file
-	scp $SRC_HOST:$newfile $BLEDIR/logs
+	# rsync handles it
+#	scp $SRC_HOST:$newfile $BLEDIR/logs
 	ssh $SRC_HOST "sudo rm -f $newfile"
-	echo "$newfile"
+#	echo "$newfile"
 	exit 0
 fi
 
